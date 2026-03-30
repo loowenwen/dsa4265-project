@@ -1,0 +1,23 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes: # Mounting the backend code directly to the /app directory in the container for live code updates
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+    volumes: # 2 mounts: one for the source code and another for node_modules to persist installed dependencies
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules # mounting a Docker-managed volume called frontend_node_modules to /app/node_modules in the container
+    depends_on: # means start/end backend service before frontend.
+      - backend
+
+# Declares a named volume. Create if it doesn't exist.
+volumes:
+  frontend_node_modules: {}
