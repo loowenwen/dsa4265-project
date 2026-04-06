@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import Literal
 
@@ -44,6 +46,10 @@ class ProcessResponse(BaseModel):
     normalized_fields: dict[str, NormalizedField]
     missing_fields: list[str]
     suspicious_fields: list[SuspiciousField]
+    default_model_output: DefaultModelOutput | None = None
+    anomaly_model_output: AnomalyModelOutput | None = None
+    policy_retrieval_output: PolicyRetrievalOutput | None = None
+    orchestrator_output: OrchestratorOutput | None = None
 
 from typing import Literal
 from pydantic import BaseModel
@@ -88,15 +94,44 @@ class PolicyMatch(BaseModel):
     snippet: str
     matched: bool = True
     match_reason: str | None = None
+    severity: Literal["hard_stop", "review", "info"] | None = None
 
 
 class PolicyRetrievalOutput(BaseModel):
     retrieved_rules: list[PolicyMatch] = []
 
 
+class DataQuality(BaseModel):
+    missing_required_fields: list[str] | None = None
+    suspicious_fields: list[str] | None = None
+    parse_warnings: list[str] | None = None
+    is_complete: bool | None = None
+
+
+class OrchestratorInput(BaseModel):
+    applicant: dict
+    risk: "DefaultModelOutput"
+    anomaly: "AnomalyModelOutput"
+    policy: "PolicyRetrievalOutput"
+    data_quality: "DataQuality"
+
+
 class OrchestratorOutput(BaseModel):
-    recommended_action: Literal["approve", "manual_review", "reject"] | None = None
-    decision_reasons: list[str] = []
+    recommendation: Literal["APPROVE", "MANUAL_REVIEW", "REJECT"] | None = None
+    decision_path: str | None = None
+    reason_codes: list[str] = []
+    summary: str | None = None
+    evidence: OrchestratorEvidence | None = None
+
+
+class OrchestratorEvidence(BaseModel):
+    default_probability: float | None = None
+    anomaly_score: float | None = None
+    violated_policy_titles: list[str] | None = None
+    missing_required_fields: list[str] | None = None
+    top_features: list[TopFeature] | None = None
+    policy_review_required: bool | None = None
+    policy_hard_stop: bool | None = None
 
 
 class ExplanationRequest(BaseModel):

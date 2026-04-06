@@ -5,6 +5,7 @@ import { useState } from "react";
 import ApplicantForm from "./components/ApplicantForm";
 import DiagnosticsCard from "./components/DiagnosticsCard";
 import FeatureVectorCard from "./components/FeatureVectorCard";
+import DecisionCard from "./components/DecisionCard";
 import { ApiValidationError, processApplicant } from "../lib/api";
 import { ProcessResponse } from "../types/api";
 
@@ -130,6 +131,12 @@ export default function HomePage() {
         <div className="space-y-6">
           {result ? (
             <>
+              <DecisionCard
+                orchestrator={result.orchestrator_output}
+                defaultModel={result.default_model_output}
+                anomalyModel={result.anomaly_model_output}
+                policyOutput={result.policy_retrieval_output}
+              />
               <FeatureVectorCard featureVector={result.feature_vector} />
               <DiagnosticsCard
                 missingFields={result.missing_fields}
