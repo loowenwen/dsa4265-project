@@ -1,4 +1,10 @@
-import { ProcessRequest, ProcessResponse, ValidationDetail } from "../types/api";
+import {
+  ExplanationRequest,
+  ExplanationResponse,
+  ProcessRequest,
+  ProcessResponse,
+  ValidationDetail,
+} from "../types/api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
@@ -27,6 +33,24 @@ export async function processApplicant(payload: ProcessRequest): Promise<Process
 
   if (!response.ok) {
     throw new Error("Failed to process applicant data");
+  }
+
+  return response.json();
+}
+
+export async function explainApplication(
+  payload: ExplanationRequest,
+): Promise<ExplanationResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/explain`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to generate explanation");
   }
 
   return response.json();

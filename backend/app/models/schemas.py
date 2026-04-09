@@ -143,11 +143,19 @@ class ExplanationRequest(BaseModel):
     orchestrator_output: OrchestratorOutput | None = None
 
 
+class ExplanationKeyMetrics(BaseModel):
+    probability_of_default: float | None = None
+    anomaly_score: float | None = None
+    risk_band: str | None = None
+    anomaly_band: str | None = None
+
+
 class ExplanationResponse(BaseModel):
     application_id: str | None = None
-    recommended_action: str
-    summary: str
-    model_explanation: list[str]
-    anomaly_explanation: list[str]
-    policy_explanation: list[str]
-    limitations: list[str]
+    recommended_action: Literal["accept", "reject", "manual review"]
+    key_metrics: ExplanationKeyMetrics
+    reasons: str
+    reason_codes: list[str] = []
+    policy_references: list[str] = []
+    decision_path: str | None = None
+    limitations: list[str] = []

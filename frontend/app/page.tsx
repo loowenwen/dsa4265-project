@@ -5,9 +5,9 @@ import { useState } from "react";
 import ApplicantForm from "./components/ApplicantForm";
 import DiagnosticsCard from "./components/DiagnosticsCard";
 import FeatureVectorCard from "./components/FeatureVectorCard";
-import DecisionCard from "./components/DecisionCard";
-import { ApiValidationError, processApplicant } from "../lib/api";
-import { ProcessResponse } from "../types/api";
+import ExplanationCard from "./components/ExplanationCard";
+import { ApiValidationError, explainApplication, processApplicant } from "../lib/api";
+import { ExplanationResponse, ProcessResponse } from "../types/api";
 
 type FormValues = {
   annual_income: string;
@@ -48,6 +48,7 @@ export default function HomePage() {
   const [formValues, setFormValues] = useState<FormValues>(INITIAL_VALUES);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [result, setResult] = useState<ProcessResponse | null>(null);
+  const [explanation, setExplanation] = useState<ExplanationResponse | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
@@ -67,6 +68,7 @@ export default function HomePage() {
   const handleSubmit = async () => {
     setGlobalError(null);
     setResult(null);
+    setExplanation(null);
 
     const clientErrors: Record<string, string> = {};
     for (const key of REQUIRED_KEYS) {
@@ -85,7 +87,15 @@ export default function HomePage() {
 
     try {
       const response = await processApplicant(formValues);
+      const explanationResponse = await explainApplication({
+        applicant_processor_output: response,
+        default_model_output: response.default_model_output,
+        anomaly_model_output: response.anomaly_model_output,
+        policy_retrieval_output: response.policy_retrieval_output,
+        orchestrator_output: response.orchestrator_output,
+      });
       setResult(response);
+      setExplanation(explanationResponse);
     } catch (error) {
       if (error instanceof ApiValidationError) {
         const nextFieldErrors: Record<string, string> = {};
@@ -131,12 +141,7 @@ export default function HomePage() {
         <div className="space-y-6">
           {result ? (
             <>
-              <DecisionCard
-                orchestrator={result.orchestrator_output}
-                defaultModel={result.default_model_output}
-                anomalyModel={result.anomaly_model_output}
-                policyOutput={result.policy_retrieval_output}
-              />
+              <ExplanationCard explanation={explanation} />
               <FeatureVectorCard featureVector={result.feature_vector} />
               <DiagnosticsCard
                 missingFields={result.missing_fields}

@@ -41,6 +41,15 @@ export type ProcessResponse = {
   orchestrator_output: OrchestratorOutput | null;
 };
 
+export type ExplanationRequest = {
+  application_id?: string | null;
+  applicant_processor_output: ProcessResponse;
+  default_model_output?: DefaultModelOutput | null;
+  anomaly_model_output?: AnomalyModelOutput | null;
+  policy_retrieval_output?: PolicyRetrievalOutput | null;
+  orchestrator_output?: OrchestratorOutput | null;
+};
+
 export type ValidationDetail = {
   field: string;
   message: string;
@@ -108,4 +117,22 @@ export type OrchestratorOutput = {
   reason_codes: string[];
   summary: string | null;
   evidence: OrchestratorEvidence | null;
+};
+
+export type ExplanationKeyMetrics = {
+  probability_of_default: number | null;
+  anomaly_score: number | null;
+  risk_band?: string | null;
+  anomaly_band?: string | null;
+};
+
+export type ExplanationResponse = {
+  application_id?: string | null;
+  recommended_action: "accept" | "reject" | "manual review";
+  key_metrics: ExplanationKeyMetrics;
+  reasons: string;
+  reason_codes: string[];
+  policy_references: string[];
+  decision_path?: string | null;
+  limitations: string[];
 };
