@@ -6,6 +6,7 @@ AI path is stubbed heuristics to stay runnable; replace with real LLM call later
 from __future__ import annotations
 
 from typing import Literal
+import logging
 
 import os
 import json
@@ -21,6 +22,8 @@ from app.models.schemas import (
 
 
 Decision = Literal["APPROVE", "REJECT", "MANUAL_REVIEW"]
+
+logger = logging.getLogger(__name__)
 
 
 def _rule_based_decision(
@@ -166,15 +169,19 @@ def _fallback_ai_decision(
 def _call_openrouter_llm(prompt: str) -> dict | None:
     api_key = os.getenv("OPENROUTER_API_KEY")
     # Default to a lightweight, widely available model
-    model = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct")
+    model = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-super-120b-a12b:free")
+    base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
     if not api_key:
+        logger.info("[ai_decision] OPENROUTER_API_KEY not set; skipping LLM call")
         return None
     try:
         resp = httpx.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            base_url,
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
+                "HTTP-Referer": os.getenv("OPENROUTER_HTTP_REFERER", "http://localhost"),
+                "X-Title": os.getenv("OPENROUTER_APP_TITLE", "credit-risk-dual-engine"),
             },
             json={
                 "model": model,
@@ -184,8 +191,10 @@ def _call_openrouter_llm(prompt: str) -> dict | None:
             timeout=20,
         )
         resp.raise_for_status()
+        logger.info("[ai_decision] openrouter call success model=%s", model)
         return resp.json()
-    except Exception:
+    except Exception as exc:
+        logger.warning("[ai_decision] openrouter call failed: %s", exc)
         return None
 
 
@@ -218,21 +227,24 @@ def _ai_underwriting_decision(
 
     api_key = os.getenv("OPENROUTER_API_KEY")
     if api_key:
-        prompt = (
-            "You are an internal underwriting assistant. Decide APPROVE, REJECT, or MANUAL_REVIEW. "
-            "If information is incomplete or conflicting, choose MANUAL_REVIEW. "
-            "Use only provided facts; do not invent policy. "
-            "Return JSON: {\"decision\": \"APPROVE|REJECT|MANUAL_REVIEW\", "
-            "\"confidence\": float, \"reasons\": [\"...\"]}.\n\n"
-            f"Applicant: {json.dumps(applicant)}\n"
-            f"Default probability: {default_probability}\n"
-            f"Anomaly score: {anomaly_score}\n"
-            f"Missing fields: {missing_fields}\n"
-            f"Policy snippets: {policy_considerations}\n"
-        )
+        prompt_parts = [
+            "You are an internal underwriting assistant. Decide APPROVE, REJECT, or MANUAL_REVIEW.",
+            "If information is incomplete or conflicting, choose MANUAL_REVIEW.",
+            "Use only provided facts; do not invent policy. If no policy snippets are provided, proceed without them and do NOT mention their absence.",
+            'Return JSON: {"decision": "APPROVE|REJECT|MANUAL_REVIEW", "confidence": float, "reasons": ["..."]}.',
+            f"Applicant: {json.dumps(applicant)}",
+            f"Default probability: {default_probability}",
+            f"Anomaly score: {anomaly_score}",
+            f"Missing fields: {missing_fields}",
+        ]
+        if policy_considerations:
+            prompt_parts.append(f"Policy snippets: {policy_considerations}")
+        prompt = "\n".join(prompt_parts)
+
         raw = _call_openrouter_llm(prompt)
         if raw:
             decision, conf, reasons = _parse_ai_completion(raw)
+            logger.info("[ai_decision] LLM parsed decision=%s confidence=%s", decision, conf)
             return AIDecision(
                 decision=decision,
                 confidence=conf,

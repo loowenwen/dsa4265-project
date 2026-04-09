@@ -11,38 +11,62 @@ import { ApiValidationError, explainApplication, processApplicant } from "../lib
 import { ExplanationResponse, ProcessResponse } from "../types/api";
 
 type FormValues = {
-  annual_income: string;
-  loan_amount: string;
-  debt_to_income_ratio: string;
-  recent_delinquencies: string;
-  employment_length_months: string;
+  person_age: string;
+  person_income: string;
+  person_home_ownership: string;
+  person_emp_length: string;
+  loan_intent: string;
+  loan_grade: string;
+  loan_amnt: string;
+  loan_int_rate: string;
+  loan_percent_income: string;
+  cb_person_default_on_file: string;
+  cb_person_cred_hist_length: string;
   additional_information: string;
 };
 
 const INITIAL_VALUES: FormValues = {
-  annual_income: "",
-  loan_amount: "",
-  debt_to_income_ratio: "",
-  recent_delinquencies: "",
-  employment_length_months: "",
+  person_age: "",
+  person_income: "",
+  person_home_ownership: "",
+  person_emp_length: "",
+  loan_intent: "",
+  loan_grade: "",
+  loan_amnt: "",
+  loan_int_rate: "",
+  loan_percent_income: "",
+  cb_person_default_on_file: "",
+  cb_person_cred_hist_length: "",
   additional_information: "",
 };
 
 const SAMPLE_VALUES: FormValues = {
-  annual_income: "$42,000",
-  loan_amount: "18000",
-  debt_to_income_ratio: "46%",
-  recent_delinquencies: "2",
-  employment_length_months: "8 months",
-  additional_information: "Applicant Summary: no additional demographic details.",
+  person_age: "35",
+  person_income: "85000",
+  person_home_ownership: "RENT",
+  person_emp_length: "6 years",
+  loan_intent: "EDUCATION",
+  loan_grade: "C",
+  loan_amnt: "12000",
+  loan_int_rate: "11.5%",
+  loan_percent_income: "10%",
+  cb_person_default_on_file: "N",
+  cb_person_cred_hist_length: "8",
+  additional_information: "",
 };
 
 const REQUIRED_KEYS: Array<keyof FormValues> = [
-  "annual_income",
-  "loan_amount",
-  "debt_to_income_ratio",
-  "recent_delinquencies",
-  "employment_length_months",
+  "person_age",
+  "person_income",
+  "person_home_ownership",
+  "person_emp_length",
+  "loan_intent",
+  "loan_grade",
+  "loan_amnt",
+  "loan_int_rate",
+  "loan_percent_income",
+  "cb_person_default_on_file",
+  "cb_person_cred_hist_length",
 ];
 
 export default function HomePage() {

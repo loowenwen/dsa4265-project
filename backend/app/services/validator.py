@@ -1,79 +1,67 @@
-from app.core.settings import (
-    DTI_MEDIUM_THRESHOLD,
-    LOAN_TO_INCOME_MULTIPLIER_ALERT,
-    VERY_HIGH_INCOME_THRESHOLD,
-)
+from app.core.settings import VERY_HIGH_INCOME_THRESHOLD
 from app.models.schemas import FeatureVector, SuspiciousField
 
 
 def detect_suspicious_fields(feature_vector: FeatureVector) -> list[SuspiciousField]:
     suspicious: list[SuspiciousField] = []
 
-    if feature_vector.annual_income <= 0:
+    if feature_vector.person_income <= 0:
         suspicious.append(
             SuspiciousField(
-                field="annual_income",
+                field="person_income",
                 reason="Annual income must be greater than zero",
                 severity="high",
             )
         )
-    elif feature_vector.annual_income > VERY_HIGH_INCOME_THRESHOLD:
+    elif feature_vector.person_income > VERY_HIGH_INCOME_THRESHOLD:
         suspicious.append(
             SuspiciousField(
-                field="annual_income",
+                field="person_income",
                 reason="Annual income is unusually high",
                 severity="medium",
             )
         )
 
-    if feature_vector.loan_amount <= 0:
+    if feature_vector.loan_amnt <= 0:
         suspicious.append(
             SuspiciousField(
-                field="loan_amount",
+                field="loan_amnt",
                 reason="Loan amount must be greater than zero",
                 severity="high",
             )
         )
-    elif feature_vector.loan_amount > feature_vector.annual_income * LOAN_TO_INCOME_MULTIPLIER_ALERT:
-        suspicious.append(
-            SuspiciousField(
-                field="loan_amount",
-                reason="Loan amount is high relative to annual income",
-                severity="high",
-            )
-        )
 
-    if feature_vector.debt_to_income_ratio < 0 or feature_vector.debt_to_income_ratio > 100:
+    if feature_vector.loan_percent_income < 0 or feature_vector.loan_percent_income > 1.5:
         suspicious.append(
             SuspiciousField(
-                field="debt_to_income_ratio",
-                reason="Debt-to-income ratio is outside 0-100 range",
+                field="loan_percent_income",
+                reason="Loan percent income should be a fraction between 0 and 1",
                 severity="high",
             )
         )
-    elif feature_vector.debt_to_income_ratio > DTI_MEDIUM_THRESHOLD:
+    elif feature_vector.loan_percent_income > 0.6:
         suspicious.append(
             SuspiciousField(
-                field="debt_to_income_ratio",
-                reason="DTI above 43%",
+                field="loan_percent_income",
+                reason="Loan percent income above 60%",
                 severity="medium",
             )
         )
 
-    if feature_vector.recent_delinquencies < 0:
+    if feature_vector.loan_int_rate < 0 or feature_vector.loan_int_rate > 100:
         suspicious.append(
             SuspiciousField(
-                field="recent_delinquencies",
-                reason="Recent delinquencies cannot be negative",
+                field="loan_int_rate",
+                reason="Interest rate outside 0-100%",
                 severity="high",
             )
         )
 
-    if feature_vector.employment_length_months < 0:
+    if feature_vector.cb_person_cred_hist_length < 0:
         suspicious.append(
             SuspiciousField(
-                field="employment_length_months",
-                reason="Employment length cannot be negative",
+                field="cb_person_cred_hist_length",
+                reason="Credit history length cannot be negative",
                 severity="high",
             )
         )

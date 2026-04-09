@@ -12,11 +12,18 @@ class FieldStatus(str, Enum):
 
 
 class ProcessRequest(BaseModel):
-    annual_income: str | None = Field(default=None, description="Required applicant annual income")
-    loan_amount: str | None = Field(default=None, description="Required requested loan amount")
-    debt_to_income_ratio: str | None = Field(default=None, description="Required DTI value")
-    recent_delinquencies: str | None = Field(default=None, description="Required number of recent delinquencies")
-    employment_length_months: str | None = Field(default=None, description="Required employment length")
+    # New schema aligned to model artifact
+    person_age: str | None = Field(default=None, description="Applicant age")
+    person_income: str | None = Field(default=None, description="Annual income")
+    person_home_ownership: str | None = Field(default=None, description="Home ownership status (RENT/OWN/MORTGAGE/OTHER)")
+    person_emp_length: str | None = Field(default=None, description="Employment length in years or months")
+    loan_intent: str | None = Field(default=None, description="Loan intent category")
+    loan_grade: str | None = Field(default=None, description="Loan grade (A-G)")
+    loan_amnt: str | None = Field(default=None, description="Loan amount requested")
+    loan_int_rate: str | None = Field(default=None, description="Loan interest rate %")
+    loan_percent_income: str | None = Field(default=None, description="Loan percent of income (0-1 or %)")
+    cb_person_default_on_file: str | None = Field(default=None, description="Y/N for past default on file")
+    cb_person_cred_hist_length: str | None = Field(default=None, description="Credit history length (years)")
     additional_information: str | None = Field(default=None, description="Optional free-form applicant notes")
 
 
@@ -33,12 +40,17 @@ class SuspiciousField(BaseModel):
 
 
 class FeatureVector(BaseModel):
-    annual_income: float
-    loan_amount: float
-    debt_to_income_ratio: float
-    recent_delinquencies: int
-    employment_length_months: int
-    demographic_information: str | Literal["cannot identify"]
+    person_age: float
+    person_income: float
+    person_home_ownership: str
+    person_emp_length: float  # in years
+    loan_intent: str
+    loan_grade: str
+    loan_amnt: float
+    loan_int_rate: float
+    loan_percent_income: float
+    cb_person_default_on_file: str
+    cb_person_cred_hist_length: float
 
 
 class ProcessResponse(BaseModel):

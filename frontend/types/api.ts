@@ -1,9 +1,15 @@
 export type ProcessRequest = {
-  annual_income: string;
-  loan_amount: string;
-  debt_to_income_ratio: string;
-  recent_delinquencies: string;
-  employment_length_months: string;
+  person_age: string;
+  person_income: string;
+  person_home_ownership: string;
+  person_emp_length: string;
+  loan_intent: string;
+  loan_grade: string;
+  loan_amnt: string;
+  loan_int_rate: string;
+  loan_percent_income: string;
+  cb_person_default_on_file: string;
+  cb_person_cred_hist_length: string;
   additional_information?: string;
 };
 
@@ -22,12 +28,17 @@ export type SuspiciousField = {
 };
 
 export type FeatureVector = {
-  annual_income: number;
-  loan_amount: number;
-  debt_to_income_ratio: number;
-  recent_delinquencies: number;
-  employment_length_months: number;
-  demographic_information: string;
+  person_age: number;
+  person_income: number;
+  person_home_ownership: string;
+  person_emp_length: number;
+  loan_intent: string;
+  loan_grade: string;
+  loan_amnt: number;
+  loan_int_rate: number;
+  loan_percent_income: number;
+  cb_person_default_on_file: string;
+  cb_person_cred_hist_length: number;
 };
 
 export type ProcessResponse = {

@@ -5,6 +5,9 @@ import joblib
 import numpy as np
 import pandas as pd
 import shap
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 
 
 def preprocess_prediction_record(new_record: dict) -> pd.DataFrame:
@@ -50,6 +53,37 @@ def preprocess_prediction_record(new_record: dict) -> pd.DataFrame:
     )
 
     return df
+
+
+def _patch_imputers(obj):
+    """
+    Patch SimpleImputer instances saved under older sklearn so they work on newer versions.
+    """
+    if isinstance(obj, SimpleImputer):
+        if not hasattr(obj, "_fill_dtype"):
+            try:
+                obj._fill_dtype = obj.statistics_.dtype
+            except Exception:
+                obj._fill_dtype = None
+        if not hasattr(obj, "_fit_dtype"):
+            try:
+                obj._fit_dtype = obj.statistics_.dtype
+            except Exception:
+                obj._fit_dtype = None
+        if not hasattr(obj, "_fill_value"):
+            try:
+                obj._fill_value = obj.statistics_
+            except Exception:
+                obj._fill_value = None
+    elif isinstance(obj, Pipeline):
+        for _, step in obj.steps:
+            _patch_imputers(step)
+    elif isinstance(obj, ColumnTransformer):
+        for _, transformer, _cols in obj.transformers:
+            _patch_imputers(transformer)
+        if hasattr(obj, "transformers_"):
+            for _, transformer, _cols in obj.transformers_:
+                _patch_imputers(transformer)
 
 
 def _make_positive_class_explanation(
@@ -140,6 +174,8 @@ def predict_one_record(model_path: str, new_record: Dict[str, Any], top_n: int =
     raw_row = preprocess_prediction_record(new_record)
 
     if preprocessor is not None:
+        _patch_imputers(preprocessor)
+        _patch_imputers(model)
         expected_columns = list(preprocessor.feature_names_in_)
         for col in expected_columns:
             if col not in raw_row.columns:

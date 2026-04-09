@@ -3,11 +3,17 @@
 import { FormEvent } from "react";
 
 type FormValues = {
-  annual_income: string;
-  loan_amount: string;
-  debt_to_income_ratio: string;
-  recent_delinquencies: string;
-  employment_length_months: string;
+  person_age: string;
+  person_income: string;
+  person_home_ownership: string;
+  person_emp_length: string;
+  loan_intent: string;
+  loan_grade: string;
+  loan_amnt: string;
+  loan_int_rate: string;
+  loan_percent_income: string;
+  cb_person_default_on_file: string;
+  cb_person_cred_hist_length: string;
   additional_information: string;
 };
 
@@ -20,12 +26,21 @@ type ApplicantFormProps = {
   onLoadSample: () => void;
 };
 
-const REQUIRED_FIELDS: Array<{ name: keyof FormValues; label: string; placeholder: string }> = [
-  { name: "annual_income", label: "Annual Income", placeholder: "$42,000" },
-  { name: "loan_amount", label: "Loan Amount", placeholder: "18000" },
-  { name: "debt_to_income_ratio", label: "Debt-to-Income Ratio", placeholder: "46%" },
-  { name: "recent_delinquencies", label: "Recent Delinquencies", placeholder: "2" },
-  { name: "employment_length_months", label: "Employment Length", placeholder: "8 months" },
+const SELECT_OPTIONS = {
+  person_home_ownership: ["RENT", "OWN", "MORTGAGE", "OTHER"],
+  loan_intent: ["EDUCATION", "PERSONAL", "MEDICAL", "VENTURE", "HOMEIMPROVEMENT", "DEBTCONSOLIDATION"],
+  loan_grade: ["A", "B", "C", "D", "E", "F", "G"],
+  cb_person_default_on_file: ["N", "Y"],
+};
+
+const TEXT_FIELDS: Array<{ name: keyof FormValues; label: string; placeholder: string; type?: string }> = [
+  { name: "person_age", label: "Person Age", placeholder: "35" },
+  { name: "person_income", label: "Annual Income", placeholder: "85000" },
+  { name: "person_emp_length", label: "Employment Length", placeholder: "6 years" },
+  { name: "loan_amnt", label: "Loan Amount", placeholder: "12000" },
+  { name: "loan_int_rate", label: "Loan Interest Rate (%)", placeholder: "11.5%" },
+  { name: "loan_percent_income", label: "Loan Percent Income", placeholder: "10%" },
+  { name: "cb_person_cred_hist_length", label: "Credit History Length (years)", placeholder: "8" },
 ];
 
 export default function ApplicantForm({
@@ -45,7 +60,7 @@ export default function ApplicantForm({
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg bg-white p-6 shadow">
       <h2 className="text-lg font-semibold">Applicant Form</h2>
 
-      {REQUIRED_FIELDS.map((field) => (
+      {TEXT_FIELDS.map((field) => (
         <div key={field.name} className="space-y-1">
           <label className="block text-sm font-medium text-slate-700" htmlFor={field.name}>
             {field.label} <span className="text-red-600">*</span>
@@ -61,6 +76,31 @@ export default function ApplicantForm({
           {fieldErrors[field.name] ? (
             <p className="text-sm text-red-600">{fieldErrors[field.name]}</p>
           ) : null}
+        </div>
+      ))}
+
+      {(["person_home_ownership", "loan_intent", "loan_grade", "cb_person_default_on_file"] as Array<
+        keyof typeof SELECT_OPTIONS
+      >).map((name) => (
+        <div key={name} className="space-y-1">
+          <label className="block text-sm font-medium text-slate-700" htmlFor={name}>
+            {name.replace(/_/g, " ").toUpperCase()} <span className="text-red-600">*</span>
+          </label>
+          <select
+            id={name}
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            value={values[name] as string}
+            onChange={(event) => onChange(name as keyof FormValues, event.target.value)}
+            required
+          >
+            <option value="">Select...</option>
+            {SELECT_OPTIONS[name].map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+          {fieldErrors[name] ? <p className="text-sm text-red-600">{fieldErrors[name]}</p> : null}
         </div>
       ))}
 

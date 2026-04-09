@@ -5,12 +5,17 @@ type FeatureVectorCardProps = {
 };
 
 const LABELS: Array<{ key: keyof FeatureVector; label: string }> = [
-  { key: "annual_income", label: "Annual Income" },
-  { key: "loan_amount", label: "Loan Amount" },
-  { key: "debt_to_income_ratio", label: "Debt-to-Income Ratio" },
-  { key: "recent_delinquencies", label: "Recent Delinquencies" },
-  { key: "employment_length_months", label: "Employment Length (Months)" },
-  { key: "demographic_information", label: "Demographic Information" },
+  { key: "person_age", label: "Person Age" },
+  { key: "person_income", label: "Person Income" },
+  { key: "person_home_ownership", label: "Home Ownership" },
+  { key: "person_emp_length", label: "Employment Length (years)" },
+  { key: "loan_intent", label: "Loan Intent" },
+  { key: "loan_grade", label: "Loan Grade" },
+  { key: "loan_amnt", label: "Loan Amount" },
+  { key: "loan_int_rate", label: "Interest Rate" },
+  { key: "loan_percent_income", label: "Loan Percent Income" },
+  { key: "cb_person_default_on_file", label: "Default On File" },
+  { key: "cb_person_cred_hist_length", label: "Credit History Length (years)" },
 ];
 
 export default function FeatureVectorCard({ featureVector }: FeatureVectorCardProps) {
