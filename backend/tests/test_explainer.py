@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock, patch
 
 from app.models.schemas import (
     AnomalyModelOutput,
@@ -113,6 +114,110 @@ class ExplainerTests(unittest.TestCase):
         self.assertIsNone(response.key_metrics.probability_of_default)
         self.assertIsNone(response.key_metrics.anomaly_score)
         self.assertTrue(response.limitations)
+
+    @patch("app.services.explainer.httpx.post")
+    @patch("app.services.explainer.settings.OPENAI_API_KEY", "test-key")
+    def test_build_explanation_uses_llm_when_response_is_grounded(self, mock_post):
+        payload = ExplanationRequest(
+            application_id="app-789",
+            applicant_processor_output=self._process_response(),
+            default_model_output=DefaultModelOutput(
+                default_probability=0.35,
+                risk_band="medium",
+                top_features=[
+                    TopFeature(
+                        feature="debt_to_income_ratio",
+                        value=46,
+                        direction="increase_risk",
+                    )
+                ],
+            ),
+            anomaly_model_output=AnomalyModelOutput(
+                anomaly_score=0.20,
+                anomaly_band="normal",
+                top_anomaly_reasons=[],
+            ),
+            policy_retrieval_output=PolicyRetrievalOutput(retrieved_rules=[]),
+            orchestrator_output=OrchestratorOutput(
+                recommendation="MANUAL_REVIEW",
+                decision_path="manual_review -> incomplete_data",
+                reason_codes=["INCOMPLETE_DATA"],
+                summary="Data incomplete or unidentifiable; manual review required.",
+                evidence=OrchestratorEvidence(
+                    default_probability=0.35,
+                    anomaly_score=0.20,
+                    violated_policy_titles=[],
+                ),
+            ),
+        )
+
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "output_text": (
+                '{"reasons":"The application should go to manual review because the '
+                'probability of default is 0.35, the anomaly score is 0.20, and the '
+                'case still has incomplete data in the orchestrator review.","used_reason_codes":["INCOMPLETE_DATA"],'
+                '"used_policy_titles":[]}'
+            )
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        response = build_explanation(payload)
+
+        self.assertIn("probability of default is 0.35", response.reasons)
+        self.assertEqual(response.reason_codes, ["INCOMPLETE_DATA"])
+        self.assertFalse(
+            any("deterministic fallback" in item for item in response.limitations)
+        )
+
+    @patch("app.services.explainer.httpx.post")
+    @patch("app.services.explainer.settings.OPENAI_API_KEY", "test-key")
+    def test_build_explanation_falls_back_when_llm_hallucinates_number(self, mock_post):
+        payload = ExplanationRequest(
+            application_id="app-999",
+            applicant_processor_output=self._process_response(),
+            default_model_output=DefaultModelOutput(
+                default_probability=0.35,
+                risk_band="medium",
+                top_features=[],
+            ),
+            anomaly_model_output=AnomalyModelOutput(
+                anomaly_score=0.20,
+                anomaly_band="normal",
+                top_anomaly_reasons=[],
+            ),
+            policy_retrieval_output=PolicyRetrievalOutput(retrieved_rules=[]),
+            orchestrator_output=OrchestratorOutput(
+                recommendation="MANUAL_REVIEW",
+                decision_path="manual_review -> incomplete_data",
+                reason_codes=["INCOMPLETE_DATA"],
+                summary="Data incomplete or unidentifiable; manual review required.",
+                evidence=OrchestratorEvidence(
+                    default_probability=0.35,
+                    anomaly_score=0.20,
+                    violated_policy_titles=[],
+                ),
+            ),
+        )
+
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "output_text": (
+                '{"reasons":"The application should be manually reviewed because the '
+                'probability of default is 0.80.","used_reason_codes":["INCOMPLETE_DATA"],'
+                '"used_policy_titles":[]}'
+            )
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        response = build_explanation(payload)
+
+        self.assertIn("The predicted probability of default is 0.35", response.reasons)
+        self.assertTrue(
+            any("deterministic fallback" in item for item in response.limitations)
+        )
 
 
 if __name__ == "__main__":
