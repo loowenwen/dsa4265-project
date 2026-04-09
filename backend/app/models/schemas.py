@@ -49,7 +49,13 @@ class ProcessResponse(BaseModel):
     default_model_output: DefaultModelOutput | None = None
     anomaly_model_output: AnomalyModelOutput | None = None
     policy_retrieval_output: PolicyRetrievalOutput | None = None
-    orchestrator_output: OrchestratorOutput | None = None
+    orchestrator_output: OrchestratorOutput | None = None  # legacy
+    # New dual-decision fields
+    rule_decision: RuleDecision | None = None
+    ai_decision: AIDecision | None = None
+    decision_alignment: DecisionAlignment | None = None
+    policy_support: PolicySupport | None = None
+    explanation: ExplanationMemo | None = None
 
 from typing import Literal
 from pydantic import BaseModel
@@ -122,6 +128,37 @@ class OrchestratorOutput(BaseModel):
     reason_codes: list[str] = []
     summary: str | None = None
     evidence: OrchestratorEvidence | None = None
+
+
+class RuleDecision(BaseModel):
+    decision: Literal["APPROVE", "REJECT", "MANUAL_REVIEW"]
+    reasons: list[str] = []
+    triggered_rules: list[str] = []
+    missing_info: list[str] = []
+    confidence: float | None = None
+
+
+class AIDecision(BaseModel):
+    decision: Literal["APPROVE", "REJECT", "MANUAL_REVIEW"]
+    confidence: float | None = None
+    reasons: list[str] = []
+    missing_info: list[str] = []
+    policy_considerations: list[str] = []
+
+
+class DecisionAlignment(BaseModel):
+    status: Literal["AGREE", "DISAGREE"]
+    note: str | None = None
+
+
+class PolicySupport(BaseModel):
+    available: bool = False
+    snippets: list[str] = []
+
+
+class ExplanationMemo(BaseModel):
+    memo: str
+    summary: str | None = None
 
 
 class OrchestratorEvidence(BaseModel):

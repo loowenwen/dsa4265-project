@@ -6,6 +6,7 @@ import ApplicantForm from "./components/ApplicantForm";
 import DiagnosticsCard from "./components/DiagnosticsCard";
 import FeatureVectorCard from "./components/FeatureVectorCard";
 import ExplanationCard from "./components/ExplanationCard";
+import DecisionCard from "./components/DecisionCard";
 import { ApiValidationError, explainApplication, processApplicant } from "../lib/api";
 import { ExplanationResponse, ProcessResponse } from "../types/api";
 
@@ -141,12 +142,22 @@ export default function HomePage() {
         <div className="space-y-6">
           {result ? (
             <>
-              <ExplanationCard explanation={explanation} />
-              <FeatureVectorCard featureVector={result.feature_vector} />
-              <DiagnosticsCard
-                missingFields={result.missing_fields}
-                suspiciousFields={result.suspicious_fields}
+              <ExplanationCard
+                explanation={explanation}
+                ruleDecision={result.rule_decision}
+                aiDecision={result.ai_decision}
+                alignment={result.decision_alignment}
               />
+              <DecisionCard
+                ruleDecision={result.rule_decision}
+                aiDecision={result.ai_decision}
+                alignment={result.decision_alignment}
+                defaultModel={result.default_model_output}
+                anomalyModel={result.anomaly_model_output}
+                policyOutput={result.policy_retrieval_output}
+              />
+              <FeatureVectorCard featureVector={result.feature_vector} />
+              <DiagnosticsCard missingFields={result.missing_fields} suspiciousFields={result.suspicious_fields} />
             </>
           ) : (
             <section className="rounded-lg bg-white p-6 text-sm text-slate-600 shadow">

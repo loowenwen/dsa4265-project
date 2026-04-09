@@ -1,16 +1,19 @@
-import { ExplanationResponse } from "../../types/api";
+import { AIDecision, DecisionAlignment, ExplanationResponse, RuleDecision } from "../../types/api";
 
 type ExplanationCardProps = {
   explanation: ExplanationResponse | null;
+  ruleDecision: RuleDecision | null;
+  aiDecision: AIDecision | null;
+  alignment: DecisionAlignment | null;
 };
 
-const ACTION_STYLES: Record<ExplanationResponse["recommended_action"], string> = {
-  accept: "bg-emerald-100 text-emerald-800",
-  reject: "bg-red-100 text-red-800",
-  "manual review": "bg-amber-100 text-amber-800",
+const ACTION_STYLES: Record<string, string> = {
+  APPROVE: "bg-emerald-100 text-emerald-800",
+  REJECT: "bg-red-100 text-red-800",
+  MANUAL_REVIEW: "bg-amber-100 text-amber-800",
 };
 
-export default function ExplanationCard({ explanation }: ExplanationCardProps) {
+export default function ExplanationCard({ explanation, ruleDecision, aiDecision, alignment }: ExplanationCardProps) {
   if (!explanation) {
     return null;
   }
@@ -18,20 +21,32 @@ export default function ExplanationCard({ explanation }: ExplanationCardProps) {
   const probability = explanation.key_metrics.probability_of_default;
   const anomalyScore = explanation.key_metrics.anomaly_score;
 
+  // Determine final decision summary
+  const finalDecision =
+    alignment && alignment.status === "AGREE"
+      ? ruleDecision?.decision || aiDecision?.decision || "MANUAL_REVIEW"
+      : ruleDecision?.decision || "MANUAL_REVIEW";
+
+  const alignmentNote =
+    alignment && alignment.status === "DISAGREE"
+      ? alignment.note || "Rule and AI decisions differ; escalate."
+      : null;
+
   return (
     <section className="rounded-lg bg-white p-6 shadow">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold">Decision</h2>
-        <span
-          className={`rounded px-3 py-1 text-xs font-semibold uppercase ${
-            ACTION_STYLES[explanation.recommended_action]
-          }`}
-        >
-          {explanation.recommended_action}
-        </span>
+        <div>
+          <h2 className="text-lg font-semibold">Explanation</h2>
+          {alignmentNote ? <p className="text-xs text-amber-700 mt-1">{alignmentNote}</p> : null}
+        </div>
+        {finalDecision ? (
+          <span className={`rounded px-3 py-1 text-xs font-semibold uppercase ${ACTION_STYLES[finalDecision] || "bg-slate-100 text-slate-700"}`}>
+            {finalDecision}
+          </span>
+        ) : null}
       </div>
 
-      <div className="mt-4 space-y-4 text-sm text-slate-700">
+      <div className="mt-2 space-y-4 text-sm text-slate-700">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Explanation

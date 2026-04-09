@@ -39,6 +39,11 @@ export type ProcessResponse = {
   anomaly_model_output: AnomalyModelOutput | null;
   policy_retrieval_output: PolicyRetrievalOutput | null;
   orchestrator_output: OrchestratorOutput | null;
+  rule_decision: RuleDecision | null;
+  ai_decision: AIDecision | null;
+  decision_alignment: DecisionAlignment | null;
+  policy_support: PolicySupport | null;
+  explanation: ExplanationMemo | null;
 };
 
 export type ExplanationRequest = {
@@ -117,6 +122,37 @@ export type OrchestratorOutput = {
   reason_codes: string[];
   summary: string | null;
   evidence: OrchestratorEvidence | null;
+};
+
+export type RuleDecision = {
+  decision: "APPROVE" | "REJECT" | "MANUAL_REVIEW";
+  reasons: string[];
+  triggered_rules: string[];
+  missing_info: string[];
+  confidence?: number | null;
+};
+
+export type AIDecision = {
+  decision: "APPROVE" | "REJECT" | "MANUAL_REVIEW";
+  confidence?: number | null;
+  reasons: string[];
+  missing_info: string[];
+  policy_considerations: string[];
+};
+
+export type DecisionAlignment = {
+  status: "AGREE" | "DISAGREE";
+  note?: string | null;
+};
+
+export type PolicySupport = {
+  available: boolean;
+  snippets: string[];
+};
+
+export type ExplanationMemo = {
+  memo: string;
+  summary?: string | null;
 };
 
 export type ExplanationKeyMetrics = {

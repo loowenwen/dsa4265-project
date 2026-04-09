@@ -5,11 +5,13 @@ from app.models.schemas import (
     OrchestratorInput,
     ProcessRequest,
     ProcessResponse,
+    PolicySupport,
+    ExplanationMemo,
 )
 from app.services.adapters.form_adapter import FormInputAdapter
-from app.services.orchestrator import decide
 from app.services.pipeline import build_process_response
 from app.services import providers
+from app.services.decision_engine import run_dual_engine
 
 router = APIRouter()
 
@@ -35,21 +37,36 @@ def process_applicant(payload: ProcessRequest) -> ProcessResponse:
         is_complete=len(base_response.missing_fields) == 0,
     )
 
-    orchestrator_input = OrchestratorInput(
+    # New dual decision engine
+    rule_decision, ai_decision, alignment = run_dual_engine(
         applicant=base_response.feature_vector.model_dump()
         if hasattr(base_response.feature_vector, "model_dump")
         else base_response.feature_vector.__dict__,
-        risk=default_output,
-        anomaly=anomaly_output,
-        policy=policy_output,
-        data_quality=data_quality,
+        default_probability=default_output.default_probability,
+        anomaly_score=anomaly_output.anomaly_score,
+        missing_fields=base_response.missing_fields,
+        suspicious_fields=[item.field for item in base_response.suspicious_fields] or [],
+        policy_output=policy_output,
     )
 
-    orchestration = decide(orchestrator_input)
+    policy_support = PolicySupport(
+        available=bool(policy_output and policy_output.retrieved_rules),
+        snippets=[r.snippet for r in policy_output.retrieved_rules] if policy_output and policy_output.retrieved_rules else [],
+    )
+
+    explanation_memo = ExplanationMemo(
+        memo="Dual decisions synthesized.",
+        summary=None,
+    )
 
     base_response.default_model_output = default_output
     base_response.anomaly_model_output = anomaly_output
     base_response.policy_retrieval_output = policy_output
-    base_response.orchestrator_output = orchestration
+    base_response.orchestrator_output = None
+    base_response.rule_decision = rule_decision
+    base_response.ai_decision = ai_decision
+    base_response.decision_alignment = alignment
+    base_response.policy_support = policy_support
+    base_response.explanation = explanation_memo
 
     return base_response
