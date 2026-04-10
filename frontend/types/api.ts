@@ -55,15 +55,12 @@ export type ProcessResponse = {
   decision_alignment: DecisionAlignment | null;
   policy_support: PolicySupport | null;
   explanation: ExplanationMemo | null;
+  decision_payload: ConsolidatedDecisionPayload | null;
 };
 
 export type ExplanationRequest = {
   application_id?: string | null;
-  applicant_processor_output: ProcessResponse;
-  default_model_output?: DefaultModelOutput | null;
-  anomaly_model_output?: AnomalyModelOutput | null;
-  policy_retrieval_output?: PolicyRetrievalOutput | null;
-  orchestrator_output?: OrchestratorOutput | null;
+  decision_payload: ConsolidatedDecisionPayload;
 };
 
 export type ValidationDetail = {
@@ -173,13 +170,58 @@ export type ExplanationKeyMetrics = {
   anomaly_band?: string | null;
 };
 
+export type DecisionLabelFeature = {
+  feature: string;
+  value: string | number | null;
+  contribution?: number | null;
+  direction?: "increase_risk" | "decrease_risk" | "unknown";
+  reason?: string | null;
+};
+
+export type OverallDecisionPayload = {
+  decision: "accept" | "reject" | "manual_review";
+  decision_source: string;
+  decision_note: string;
+};
+
+export type DefaultRiskPayload = {
+  decision: "accept" | "reject" | "manual_review";
+  default_probability: number | null;
+  risk_band?: string | null;
+  top_features: DecisionLabelFeature[];
+};
+
+export type AnomalyDetectionPayload = {
+  decision: "accept" | "reject" | "manual_review";
+  anomaly_score: number | null;
+  anomaly_band?: string | null;
+  top_features: DecisionLabelFeature[];
+};
+
+export type ConsolidatedAIDecisionPayload = {
+  decision: "accept" | "reject" | "manual_review";
+  top_reasons: string[];
+  raw_input: Record<string, string | number | null>;
+};
+
+export type ConsolidatedDecisionPayload = {
+  overall_decision: OverallDecisionPayload;
+  default_risk: DefaultRiskPayload;
+  anomaly_detection: AnomalyDetectionPayload;
+  ai_decision: ConsolidatedAIDecisionPayload;
+};
+
+export type ExplanationEvidenceItem = {
+  text: string;
+  sources: Array<"default_risk" | "anomaly_detection" | "ai_decision">;
+};
+
 export type ExplanationResponse = {
   application_id?: string | null;
-  recommended_action: "accept" | "reject" | "manual review";
+  overall_decision: "accept" | "reject" | "manual_review";
   key_metrics: ExplanationKeyMetrics;
-  reasons: string;
-  reason_codes: string[];
-  policy_references: string[];
-  decision_path?: string | null;
+  summary: string;
+  supporting_evidence: ExplanationEvidenceItem[];
+  cautionary_evidence: ExplanationEvidenceItem[];
   limitations: string[];
 };

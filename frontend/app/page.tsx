@@ -6,7 +6,6 @@ import ApplicantForm from "./components/ApplicantForm";
 import DiagnosticsCard from "./components/DiagnosticsCard";
 import FeatureVectorCard from "./components/FeatureVectorCard";
 import ExplanationCard from "./components/ExplanationCard";
-import DecisionCard from "./components/DecisionCard";
 import { ApiValidationError, explainApplication, processApplicant } from "../lib/api";
 import { ExplanationResponse, ProcessResponse } from "../types/api";
 
@@ -112,12 +111,11 @@ export default function HomePage() {
 
     try {
       const response = await processApplicant(formValues);
+      if (!response.decision_payload) {
+        throw new Error("Decision payload unavailable");
+      }
       const explanationResponse = await explainApplication({
-        applicant_processor_output: response,
-        default_model_output: response.default_model_output,
-        anomaly_model_output: response.anomaly_model_output,
-        policy_retrieval_output: response.policy_retrieval_output,
-        orchestrator_output: response.orchestrator_output,
+        decision_payload: response.decision_payload,
       });
       setResult(response);
       setExplanation(explanationResponse);
@@ -168,17 +166,7 @@ export default function HomePage() {
             <>
               <ExplanationCard
                 explanation={explanation}
-                ruleDecision={result.rule_decision}
-                aiDecision={result.ai_decision}
-                alignment={result.decision_alignment}
-              />
-              <DecisionCard
-                ruleDecision={result.rule_decision}
-                aiDecision={result.ai_decision}
-                alignment={result.decision_alignment}
-                defaultModel={result.default_model_output}
-                anomalyModel={result.anomaly_model_output}
-                policyOutput={result.policy_retrieval_output}
+                decisionPayload={result.decision_payload}
               />
               <FeatureVectorCard featureVector={result.feature_vector} />
               <DiagnosticsCard missingFields={result.missing_fields} suspiciousFields={result.suspicious_fields} />

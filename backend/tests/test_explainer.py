@@ -2,222 +2,142 @@ import unittest
 from unittest.mock import Mock, patch
 
 from app.models.schemas import (
-    AnomalyModelOutput,
-    AnomalyReason,
-    DefaultModelOutput,
+    AIDecisionPayload,
+    AnomalyDetectionPayload,
+    ConsolidatedDecisionPayload,
+    DecisionLabelFeature,
+    DefaultRiskPayload,
     ExplanationRequest,
-    OrchestratorEvidence,
-    OrchestratorOutput,
-    PolicyMatch,
-    PolicyRetrievalOutput,
-    ProcessResponse,
-    SuspiciousField,
-    TopFeature,
+    OverallDecisionPayload,
 )
 from app.services.explainer import build_explanation
 
 
 class ExplainerTests(unittest.TestCase):
-    def _process_response(self) -> ProcessResponse:
-        return ProcessResponse(
-            feature_vector={
-                "annual_income": 42000,
-                "loan_amount": 18000,
-                "debt_to_income_ratio": 46,
-                "recent_delinquencies": 2,
-                "employment_length_months": 8,
-                "demographic_information": "cannot identify",
-            },
-            normalized_fields={},
-            missing_fields=[],
-            suspicious_fields=[
-                SuspiciousField(
-                    field="debt_to_income_ratio",
-                    reason="Value exceeds the normal range for automatic approval.",
-                    severity="medium",
-                )
-            ],
-        )
-
-    def test_build_explanation_uses_orchestrator_recommendation_and_clean_report(self):
-        payload = ExplanationRequest(
-            application_id="app-123",
-            applicant_processor_output=self._process_response(),
-            default_model_output=DefaultModelOutput(
-                default_probability=0.37,
+    def _decision_payload(self) -> ConsolidatedDecisionPayload:
+        return ConsolidatedDecisionPayload(
+            overall_decision=OverallDecisionPayload(
+                decision="manual_review",
+                decision_note=(
+                    "Default risk and AI decision suggest manual review, while anomaly "
+                    "detection suggests accept."
+                ),
+            ),
+            default_risk=DefaultRiskPayload(
+                decision="manual_review",
+                default_probability=0.34,
                 risk_band="medium",
                 top_features=[
-                    TopFeature(
-                        feature="debt_to_income_ratio",
-                        value=46,
+                    DecisionLabelFeature(
+                        feature="loan_grade",
+                        value="C",
+                        contribution=0.16,
                         direction="increase_risk",
                     )
                 ],
             ),
-            anomaly_model_output=AnomalyModelOutput(
-                anomaly_score=0.61,
-                anomaly_band="elevated",
-                out_of_distribution=True,
-                top_anomaly_reasons=[
-                    AnomalyReason(
-                        feature="employment_length_months",
-                        reason="short employment history relative to requested loan",
+            anomaly_detection=AnomalyDetectionPayload(
+                decision="accept",
+                anomaly_score=0.18,
+                anomaly_band="normal",
+                top_features=[
+                    DecisionLabelFeature(
+                        feature="person_emp_length",
+                        value=6,
+                        reason="Employment length is within the normal range for similar applicants",
                     )
                 ],
             ),
-            policy_retrieval_output=PolicyRetrievalOutput(
-                retrieved_rules=[
-                    PolicyMatch(
-                        rule_id="POL-001",
-                        title="High DTI requires manual review",
-                        snippet="Applicants with debt-to-income ratio above 45% require manual review.",
-                        severity="review",
-                    )
-                ]
-            ),
-            orchestrator_output=OrchestratorOutput(
-                recommendation="MANUAL_REVIEW",
-                decision_path="manual_review -> review_flags",
-                reason_codes=["POLICY_REVIEW_TRIGGER", "ELEVATED_ANOMALY"],
-                summary="The case should be escalated because policy review is triggered and anomaly is elevated.",
-                evidence=OrchestratorEvidence(
-                    default_probability=0.37,
-                    anomaly_score=0.61,
-                    violated_policy_titles=["High DTI requires manual review"],
-                ),
+            ai_decision=AIDecisionPayload(
+                decision="manual_review",
+                top_reasons=[
+                    "The applicant shows moderate repayment risk based on loan grade and interest rate."
+                ],
+                raw_input={
+                    "person_age": 35,
+                    "person_income": 85000,
+                    "person_home_ownership": "RENT",
+                    "person_emp_length": 6,
+                    "loan_intent": "EDUCATION",
+                    "loan_grade": "C",
+                    "loan_amnt": 12000,
+                    "loan_int_rate": 11.5,
+                    "loan_percent_income": 0.1,
+                },
             ),
         )
 
-        response = build_explanation(payload)
-
-        self.assertEqual(response.recommended_action, "manual review")
-        self.assertEqual(response.key_metrics.probability_of_default, 0.37)
-        self.assertEqual(response.key_metrics.anomaly_score, 0.61)
-        self.assertIn("probability of default is 0.37", response.reasons)
-        self.assertIn("anomaly score is 0.61", response.reasons)
-        self.assertIn("High DTI requires manual review", response.reasons)
-        self.assertEqual(response.reason_codes, ["POLICY_REVIEW_TRIGGER", "ELEVATED_ANOMALY"])
-        self.assertEqual(response.policy_references, ["High DTI requires manual review"])
-
-    def test_build_explanation_defaults_to_manual_review_without_orchestrator(self):
-        payload = ExplanationRequest(
-            application_id="app-456",
-            applicant_processor_output=self._process_response(),
-            default_model_output=DefaultModelOutput(default_probability=None, top_features=[]),
-            anomaly_model_output=AnomalyModelOutput(anomaly_score=None, top_anomaly_reasons=[]),
-            policy_retrieval_output=PolicyRetrievalOutput(retrieved_rules=[]),
+    def test_build_explanation_returns_unavailable_without_api_key(self):
+        response = build_explanation(
+            ExplanationRequest(application_id="app-123", decision_payload=self._decision_payload())
         )
 
-        response = build_explanation(payload)
-
-        self.assertEqual(response.recommended_action, "manual review")
-        self.assertIsNone(response.key_metrics.probability_of_default)
-        self.assertIsNone(response.key_metrics.anomaly_score)
-        self.assertTrue(response.limitations)
+        self.assertEqual(response.overall_decision, "manual_review")
+        self.assertEqual(response.key_metrics.probability_of_default, 0.34)
+        self.assertEqual(response.key_metrics.anomaly_score, 0.18)
+        self.assertIn("Explanation unavailable", response.summary)
+        self.assertEqual(response.supporting_evidence, [])
+        self.assertEqual(response.cautionary_evidence, [])
 
     @patch("app.services.explainer.httpx.post")
-    @patch("app.services.explainer.settings.OPENAI_API_KEY", "test-key")
+    @patch("app.services.explainer.settings.OPENROUTER_API_KEY", "test-key")
     def test_build_explanation_uses_llm_when_response_is_grounded(self, mock_post):
-        payload = ExplanationRequest(
-            application_id="app-789",
-            applicant_processor_output=self._process_response(),
-            default_model_output=DefaultModelOutput(
-                default_probability=0.35,
-                risk_band="medium",
-                top_features=[
-                    TopFeature(
-                        feature="debt_to_income_ratio",
-                        value=46,
-                        direction="increase_risk",
-                    )
-                ],
-            ),
-            anomaly_model_output=AnomalyModelOutput(
-                anomaly_score=0.20,
-                anomaly_band="normal",
-                top_anomaly_reasons=[],
-            ),
-            policy_retrieval_output=PolicyRetrievalOutput(retrieved_rules=[]),
-            orchestrator_output=OrchestratorOutput(
-                recommendation="MANUAL_REVIEW",
-                decision_path="manual_review -> incomplete_data",
-                reason_codes=["INCOMPLETE_DATA"],
-                summary="Data incomplete or unidentifiable; manual review required.",
-                evidence=OrchestratorEvidence(
-                    default_probability=0.35,
-                    anomaly_score=0.20,
-                    violated_policy_titles=[],
-                ),
-            ),
-        )
-
         mock_response = Mock()
         mock_response.json.return_value = {
-            "output_text": (
-                '{"reasons":"The application should go to manual review because the '
-                'probability of default is 0.35, the anomaly score is 0.20, and the '
-                'case still has incomplete data in the orchestrator review.","used_reason_codes":["INCOMPLETE_DATA"],'
-                '"used_policy_titles":[]}'
-            )
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            '{"summary":"The application shows some stable signals, but the overall '
+                            'decision remains manual review because the risk assessment and AI review '
+                            'both indicate moderate caution.","supporting_evidence":[{"text":"Employment '
+                            'length is 6 and appears consistent with similar applicants.","sources":["anomaly_detection"]}],'
+                            '"cautionary_evidence":[{"text":"Default probability is 0.34 and the loan grade C '
+                            'contributes to moderate risk.","sources":["default_risk","ai_decision"]}]}'
+                        )
+                    }
+                }
+            ]
         }
         mock_response.raise_for_status.return_value = None
         mock_post.return_value = mock_response
 
-        response = build_explanation(payload)
-
-        self.assertIn("probability of default is 0.35", response.reasons)
-        self.assertEqual(response.reason_codes, ["INCOMPLETE_DATA"])
-        self.assertFalse(
-            any("deterministic fallback" in item for item in response.limitations)
+        response = build_explanation(
+            ExplanationRequest(application_id="app-456", decision_payload=self._decision_payload())
         )
+
+        self.assertIn("manual review", response.summary.lower())
+        self.assertEqual(len(response.supporting_evidence), 1)
+        self.assertEqual(response.supporting_evidence[0].sources, ["anomaly_detection"])
+        self.assertEqual(len(response.cautionary_evidence), 1)
+        self.assertIn("default_risk", response.cautionary_evidence[0].sources)
+        self.assertEqual(response.limitations, [])
 
     @patch("app.services.explainer.httpx.post")
-    @patch("app.services.explainer.settings.OPENAI_API_KEY", "test-key")
-    def test_build_explanation_falls_back_when_llm_hallucinates_number(self, mock_post):
-        payload = ExplanationRequest(
-            application_id="app-999",
-            applicant_processor_output=self._process_response(),
-            default_model_output=DefaultModelOutput(
-                default_probability=0.35,
-                risk_band="medium",
-                top_features=[],
-            ),
-            anomaly_model_output=AnomalyModelOutput(
-                anomaly_score=0.20,
-                anomaly_band="normal",
-                top_anomaly_reasons=[],
-            ),
-            policy_retrieval_output=PolicyRetrievalOutput(retrieved_rules=[]),
-            orchestrator_output=OrchestratorOutput(
-                recommendation="MANUAL_REVIEW",
-                decision_path="manual_review -> incomplete_data",
-                reason_codes=["INCOMPLETE_DATA"],
-                summary="Data incomplete or unidentifiable; manual review required.",
-                evidence=OrchestratorEvidence(
-                    default_probability=0.35,
-                    anomaly_score=0.20,
-                    violated_policy_titles=[],
-                ),
-            ),
-        )
-
+    @patch("app.services.explainer.settings.OPENROUTER_API_KEY", "test-key")
+    def test_build_explanation_returns_unavailable_when_llm_hallucinates_number(self, mock_post):
         mock_response = Mock()
         mock_response.json.return_value = {
-            "output_text": (
-                '{"reasons":"The application should be manually reviewed because the '
-                'probability of default is 0.80.","used_reason_codes":["INCOMPLETE_DATA"],'
-                '"used_policy_titles":[]}'
-            )
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            '{"summary":"The application should be reviewed because the risk score is 0.99.",'
+                            '"supporting_evidence":[],"cautionary_evidence":[]}'
+                        )
+                    }
+                }
+            ]
         }
         mock_response.raise_for_status.return_value = None
         mock_post.return_value = mock_response
 
-        response = build_explanation(payload)
-
-        self.assertIn("The predicted probability of default is 0.35", response.reasons)
-        self.assertTrue(
-            any("deterministic fallback" in item for item in response.limitations)
+        response = build_explanation(
+            ExplanationRequest(application_id="app-789", decision_payload=self._decision_payload())
         )
+
+        self.assertIn("Explanation unavailable", response.summary)
+        self.assertTrue(response.limitations)
 
 
 if __name__ == "__main__":

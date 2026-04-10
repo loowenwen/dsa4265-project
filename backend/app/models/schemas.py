@@ -68,6 +68,7 @@ class ProcessResponse(BaseModel):
     decision_alignment: DecisionAlignment | None = None
     policy_support: PolicySupport | None = None
     explanation: ExplanationMemo | None = None
+    decision_payload: ConsolidatedDecisionPayload | None = None
 
 from typing import Literal
 from pydantic import BaseModel
@@ -185,11 +186,7 @@ class OrchestratorEvidence(BaseModel):
 
 class ExplanationRequest(BaseModel):
     application_id: str | None = None
-    applicant_processor_output: ProcessResponse
-    default_model_output: DefaultModelOutput | None = None
-    anomaly_model_output: AnomalyModelOutput | None = None
-    policy_retrieval_output: PolicyRetrievalOutput | None = None
-    orchestrator_output: OrchestratorOutput | None = None
+    decision_payload: ConsolidatedDecisionPayload
 
 
 class ExplanationKeyMetrics(BaseModel):
@@ -201,10 +198,55 @@ class ExplanationKeyMetrics(BaseModel):
 
 class ExplanationResponse(BaseModel):
     application_id: str | None = None
-    recommended_action: Literal["accept", "reject", "manual review"]
+    overall_decision: Literal["accept", "reject", "manual_review"]
     key_metrics: ExplanationKeyMetrics
-    reasons: str
-    reason_codes: list[str] = []
-    policy_references: list[str] = []
-    decision_path: str | None = None
+    summary: str
+    supporting_evidence: list[ExplanationEvidenceItem] = []
+    cautionary_evidence: list[ExplanationEvidenceItem] = []
     limitations: list[str] = []
+
+
+class DecisionLabelFeature(BaseModel):
+    feature: str
+    value: str | float | int | None = None
+    contribution: float | None = None
+    direction: Literal["increase_risk", "decrease_risk", "unknown"] = "unknown"
+    reason: str | None = None
+
+
+class OverallDecisionPayload(BaseModel):
+    decision: Literal["accept", "reject", "manual_review"]
+    decision_source: str = "decision_maker"
+    decision_note: str
+
+
+class DefaultRiskPayload(BaseModel):
+    decision: Literal["accept", "reject", "manual_review"]
+    default_probability: float | None = None
+    risk_band: str | None = None
+    top_features: list[DecisionLabelFeature] = []
+
+
+class AnomalyDetectionPayload(BaseModel):
+    decision: Literal["accept", "reject", "manual_review"]
+    anomaly_score: float | None = None
+    anomaly_band: str | None = None
+    top_features: list[DecisionLabelFeature] = []
+
+
+class AIDecisionPayload(BaseModel):
+    decision: Literal["accept", "reject", "manual_review"]
+    top_reasons: list[str] = []
+    raw_input: dict
+
+
+class ConsolidatedDecisionPayload(BaseModel):
+    overall_decision: OverallDecisionPayload
+    default_risk: DefaultRiskPayload
+    anomaly_detection: AnomalyDetectionPayload
+    ai_decision: AIDecisionPayload
+
+
+class ExplanationEvidenceItem(BaseModel):
+    text: str
+    sources: list[Literal["default_risk", "anomaly_detection", "ai_decision"]] = []

@@ -14,8 +14,8 @@ This backend currently focuses on the Applicant Information Processor module.
 - Tests: `backend/tests/`
 
 ## LLM explanation agent
-- Set `OPENAI_API_KEY` in your environment before starting the backend.
-- Optional: set `EXPLANATION_MODEL` to override the default model `gpt-4o-mini`.
+- Set `OPENROUTER_API_KEY` in your environment before starting the backend.
+- Optional: set `EXPLANATION_MODEL` to override the default model `google/gemini-2.0-flash-exp:free`.
 - The explanation endpoint keeps the orchestrator as the decision source of truth.
-- The LLM only generates the natural-language explanation paragraph.
-- If the LLM response is missing, invalid, or introduces unsupported claims, the backend automatically falls back to the deterministic explainer.
+- The LLM only generates the explanation summary plus supporting and cautionary evidence.
+- If the LLM response is missing, invalid, or introduces unsupported claims, the backend returns `Explanation unavailable`.

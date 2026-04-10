@@ -9,6 +9,7 @@ from app.models.schemas import (
     ExplanationMemo,
 )
 from app.services.adapters.form_adapter import FormInputAdapter
+from app.services.decision_payload_builder import build_consolidated_decision_payload
 from app.services.pipeline import build_process_response
 from app.services import providers
 from app.services.decision_engine import run_dual_engine
@@ -59,6 +60,17 @@ def process_applicant(payload: ProcessRequest) -> ProcessResponse:
         summary=None,
     )
 
+    decision_payload = build_consolidated_decision_payload(
+        raw_input=(
+            base_response.feature_vector.model_dump()
+            if hasattr(base_response.feature_vector, "model_dump")
+            else base_response.feature_vector.__dict__
+        ),
+        default_model_output=default_output,
+        anomaly_model_output=anomaly_output,
+        ai_decision=ai_decision,
+    )
+
     base_response.default_model_output = default_output
     base_response.anomaly_model_output = anomaly_output
     base_response.policy_retrieval_output = policy_output
@@ -68,5 +80,6 @@ def process_applicant(payload: ProcessRequest) -> ProcessResponse:
     base_response.decision_alignment = alignment
     base_response.policy_support = policy_support
     base_response.explanation = explanation_memo
+    base_response.decision_payload = decision_payload
 
     return base_response

@@ -9,7 +9,6 @@ from app.models.schemas import (
     PolicyRetrievalOutput,
     TopFeature,
 )
-from app.services.credit_risk_predictor import predict_one_record
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +53,8 @@ def get_default_model_output(feature_vector) -> DefaultModelOutput:
     # Prefer real predictor if model artifact is available; otherwise fall back to stub.
     if model_path.exists():
         try:
+            from app.services.credit_risk_predictor import predict_one_record
+
             record = _feature_vector_to_prediction_record(feature_vector)
             prediction = predict_one_record(str(model_path), record, top_n=5)
 

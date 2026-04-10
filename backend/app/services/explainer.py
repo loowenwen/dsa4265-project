@@ -4,358 +4,228 @@ import re
 import httpx
 
 from app.core import settings
-from app.models.schemas import ExplanationKeyMetrics, ExplanationRequest, ExplanationResponse
+from app.models.schemas import (
+    ConsolidatedDecisionPayload,
+    ExplanationEvidenceItem,
+    ExplanationKeyMetrics,
+    ExplanationRequest,
+    ExplanationResponse,
+)
 
 
-ACTION_MAP = {
-    "APPROVE": "accept",
-    "REJECT": "reject",
-    "MANUAL_REVIEW": "manual review",
-}
+ALLOWED_SOURCES = {"default_risk", "anomaly_detection", "ai_decision"}
 
 
-def _normalize_action(raw_action: str | None) -> str:
-    return ACTION_MAP.get(raw_action or "", "manual review")
-
-
-def _format_probability(value: float | None) -> str | None:
-    if value is None:
-        return None
-    return f"{value:.2f}"
-
-
-def _build_base_explanation(payload: ExplanationRequest) -> ExplanationResponse:
-    applicant = payload.applicant_processor_output
-    default_output = payload.default_model_output
-    anomaly_output = payload.anomaly_model_output
-    policy_output = payload.policy_retrieval_output
-    orchestrator = payload.orchestrator_output
-
-    recommended_action = _normalize_action(
-        orchestrator.recommendation if orchestrator else None
-    )
-
-    reasons: list[str] = []
-    policy_references: list[str] = []
-    limitations: list[str] = []
-
-    default_probability = None
-    anomaly_score = None
-
-    if orchestrator and orchestrator.evidence:
-        default_probability = orchestrator.evidence.default_probability
-        anomaly_score = orchestrator.evidence.anomaly_score
-
-    if default_probability is None and default_output:
-        default_probability = default_output.default_probability
-
-    if anomaly_score is None and anomaly_output:
-        anomaly_score = anomaly_output.anomaly_score
-
-    if default_probability is not None:
-        risk_band = default_output.risk_band if default_output else None
-        band_text = f", which falls in the {risk_band} risk band" if risk_band else ""
-        reasons.append(
-            f"The predicted probability of default is {_format_probability(default_probability)}{band_text}."
-        )
-    else:
-        limitations.append("Default model evidence was not provided.")
-
-    if anomaly_score is not None:
-        anomaly_band = anomaly_output.anomaly_band if anomaly_output else None
-        band_text = (
-            f" and is classified as {anomaly_band}" if anomaly_band else ""
-        )
-        anomaly_sentence = (
-            f"The anomaly score is {_format_probability(anomaly_score)}{band_text}."
-        )
-        if anomaly_output and anomaly_output.out_of_distribution:
-            anomaly_sentence += " The profile is flagged as out-of-distribution."
-        reasons.append(anomaly_sentence)
-    else:
-        limitations.append("Anomaly model evidence was not provided.")
-
-    if policy_output and policy_output.retrieved_rules:
-        for rule in policy_output.retrieved_rules:
-            if rule.matched:
-                label = rule.title or rule.rule_id or "Policy rule"
-                policy_references.append(label)
-    elif orchestrator and orchestrator.evidence and orchestrator.evidence.violated_policy_titles:
-        policy_references.extend(orchestrator.evidence.violated_policy_titles)
-    else:
-        limitations.append("Policy retrieval evidence was not provided.")
-
-    if policy_references:
-        reasons.append(
-            "Relevant policy checks were triggered: "
-            + ", ".join(policy_references)
-            + "."
-        )
-
-    if applicant.missing_fields:
-        limitations.append(
-            "Missing or unidentifiable fields: " + ", ".join(applicant.missing_fields)
-        )
-
-    if applicant.suspicious_fields:
-        limitations.extend(
-            [f"{item.field}: {item.reason}" for item in applicant.suspicious_fields]
-        )
-
-    if default_output and default_output.top_features:
-        top_features = []
-        for feat in default_output.top_features[:2]:
-            if feat.feature:
-                top_features.append(feat.feature.replace("_", " "))
-        if top_features:
-            reasons.append(
-                "The credit risk estimate is driven mainly by "
-                + " and ".join(top_features)
-                + "."
-            )
-
-    if anomaly_output and anomaly_output.top_anomaly_reasons:
-        anomaly_reasons = []
-        for item in anomaly_output.top_anomaly_reasons[:2]:
-            if item.reason:
-                anomaly_reasons.append(item.reason)
-            elif item.feature:
-                anomaly_reasons.append(f"an unusual pattern in {item.feature.replace('_', ' ')}")
-        if anomaly_reasons:
-            reasons.append(
-                "The anomaly review also notes "
-                + " and ".join(anomaly_reasons)
-                + "."
-            )
-
-    if orchestrator and orchestrator.summary:
-        reasons.append(orchestrator.summary)
-
-    if not reasons:
-        reasons.append(
-            "There is not enough consolidated evidence to explain the decision, so manual review is recommended."
-        )
-
-    reasons_text = " ".join(reasons)
-
+def _unavailable_response(payload: ExplanationRequest, reason: str) -> ExplanationResponse:
+    decision_payload = payload.decision_payload
     return ExplanationResponse(
         application_id=payload.application_id,
-        recommended_action=recommended_action,
+        overall_decision=decision_payload.overall_decision.decision,
         key_metrics=ExplanationKeyMetrics(
-            probability_of_default=default_probability,
-            anomaly_score=anomaly_score,
-            risk_band=default_output.risk_band if default_output else None,
-            anomaly_band=anomaly_output.anomaly_band if anomaly_output else None,
+            probability_of_default=decision_payload.default_risk.default_probability,
+            anomaly_score=decision_payload.anomaly_detection.anomaly_score,
+            risk_band=decision_payload.default_risk.risk_band,
+            anomaly_band=decision_payload.anomaly_detection.anomaly_band,
         ),
-        reasons=reasons_text,
-        reason_codes=orchestrator.reason_codes if orchestrator else [],
-        policy_references=policy_references,
-        decision_path=orchestrator.decision_path if orchestrator else None,
-        limitations=limitations,
+        summary=(
+            "Explanation unavailable. The system could not generate a grounded AI explanation "
+            "for this case using the available evidence."
+        ),
+        supporting_evidence=[],
+        cautionary_evidence=[],
+        limitations=[reason],
     )
-
-
-def _build_grounded_llm_prompt(
-    payload: ExplanationRequest,
-    fallback: ExplanationResponse,
-) -> dict:
-    default_output = payload.default_model_output
-    anomaly_output = payload.anomaly_model_output
-    policy_output = payload.policy_retrieval_output
-    orchestrator = payload.orchestrator_output
-
-    return {
-        "recommendation": fallback.recommended_action,
-        "decision_path": orchestrator.decision_path if orchestrator else None,
-        "orchestrator_summary": orchestrator.summary if orchestrator else None,
-        "reason_codes": fallback.reason_codes,
-        "metrics": {
-            "probability_of_default": fallback.key_metrics.probability_of_default,
-            "anomaly_score": fallback.key_metrics.anomaly_score,
-            "risk_band": fallback.key_metrics.risk_band,
-            "anomaly_band": fallback.key_metrics.anomaly_band,
-        },
-        "risk_evidence": [
-            {
-                "feature": feature.feature,
-                "direction": feature.direction,
-                "importance": feature.importance,
-            }
-            for feature in (default_output.top_features if default_output else [])[:3]
-        ],
-        "anomaly_evidence": [
-            {
-                "feature": item.feature,
-                "reason": item.reason,
-                "severity": item.severity,
-            }
-            for item in (anomaly_output.top_anomaly_reasons if anomaly_output else [])[:3]
-        ],
-        "policy_references": fallback.policy_references
-        or [
-            rule.title or rule.rule_id or "Policy rule"
-            for rule in (policy_output.retrieved_rules if policy_output else [])
-            if rule.matched
-        ],
-        "limitations": fallback.limitations,
-    }
 
 
 def _extract_response_text(response_json: dict) -> str:
-    if response_json.get("output_text"):
-        return response_json["output_text"]
+    choices = response_json.get("choices", [])
+    for choice in choices:
+        message = choice.get("message", {})
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            return content
 
-    output = response_json.get("output", [])
-    for item in output:
-        for content in item.get("content", []):
-            if content.get("type") == "output_text" and content.get("text"):
-                return content["text"]
-
-    raise ValueError("No output text returned by explanation model.")
+    raise ValueError("No output text returned by OpenRouter explanation model.")
 
 
-def _allowed_reason_codes(payload: ExplanationRequest) -> set[str]:
-    orchestrator = payload.orchestrator_output
-    return set(orchestrator.reason_codes if orchestrator else [])
+def _allowed_numeric_tokens(decision_payload: ConsolidatedDecisionPayload) -> set[str]:
+    raw = json.dumps(decision_payload.model_dump())
+    return set(re.findall(r"\b\d+(?:\.\d+)?\b", raw))
 
 
-def _allowed_policy_titles(payload: ExplanationRequest) -> set[str]:
-    policy_output = payload.policy_retrieval_output
-    titles = set()
-    if policy_output:
-        titles.update(
-            rule.title or rule.rule_id or "Policy rule"
-            for rule in policy_output.retrieved_rules
-            if rule.matched
-        )
-    orchestrator = payload.orchestrator_output
-    if orchestrator and orchestrator.evidence and orchestrator.evidence.violated_policy_titles:
-        titles.update(orchestrator.evidence.violated_policy_titles)
-    return titles
+def _validate_evidence_items(items: list[dict], allowed_numeric_tokens: set[str]) -> list[ExplanationEvidenceItem]:
+    validated: list[ExplanationEvidenceItem] = []
+
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError("Evidence item must be an object.")
+        text = item.get("text")
+        sources = item.get("sources", [])
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError("Evidence text is required.")
+        if not isinstance(sources, list) or not all(isinstance(src, str) for src in sources):
+            raise ValueError("Evidence sources must be a string list.")
+        if any(src not in ALLOWED_SOURCES for src in sources):
+            raise ValueError("Evidence cited unsupported source.")
+        numeric_tokens = re.findall(r"\b\d+(?:\.\d+)?\b", text)
+        if any(token not in allowed_numeric_tokens for token in numeric_tokens):
+            raise ValueError("Evidence introduced unsupported numeric claims.")
+        validated.append(ExplanationEvidenceItem(text=text.strip(), sources=sources))
+
+    return validated
 
 
-def _allowed_metric_strings(fallback: ExplanationResponse) -> set[str]:
-    allowed = set()
-    if fallback.key_metrics.probability_of_default is not None:
-        allowed.add(f"{fallback.key_metrics.probability_of_default:.2f}")
-        allowed.add(str(fallback.key_metrics.probability_of_default))
-    if fallback.key_metrics.anomaly_score is not None:
-        allowed.add(f"{fallback.key_metrics.anomaly_score:.2f}")
-        allowed.add(str(fallback.key_metrics.anomaly_score))
-    return allowed
+def _validate_llm_output(parsed: dict, decision_payload: ConsolidatedDecisionPayload) -> tuple[str, list[ExplanationEvidenceItem], list[ExplanationEvidenceItem]]:
+    summary = parsed.get("summary")
+    supporting = parsed.get("supporting_evidence", [])
+    cautionary = parsed.get("cautionary_evidence", [])
+
+    if not isinstance(summary, str) or not summary.strip():
+        raise ValueError("LLM summary is empty.")
+
+    allowed_numeric_tokens = _allowed_numeric_tokens(decision_payload)
+    summary_numeric = re.findall(r"\b\d+(?:\.\d+)?\b", summary)
+    if any(token not in allowed_numeric_tokens for token in summary_numeric):
+        raise ValueError("Summary introduced unsupported numeric claims.")
+
+    supporting_items = _validate_evidence_items(supporting, allowed_numeric_tokens)
+    cautionary_items = _validate_evidence_items(cautionary, allowed_numeric_tokens)
+    return summary.strip(), supporting_items, cautionary_items
 
 
-def _validate_llm_output(
-    parsed: dict,
+def _generate_llm_explanation(
     payload: ExplanationRequest,
-    fallback: ExplanationResponse,
-) -> tuple[str, list[str], list[str]]:
-    reasons = parsed.get("reasons")
-    cited_reason_codes = parsed.get("used_reason_codes", [])
-    cited_policy_titles = parsed.get("used_policy_titles", [])
+) -> tuple[str, list[ExplanationEvidenceItem], list[ExplanationEvidenceItem]]:
+    if not settings.OPENROUTER_API_KEY:
+        raise ValueError("OPENROUTER_API_KEY is not configured.")
 
-    if not isinstance(reasons, str) or not reasons.strip():
-        raise ValueError("LLM explanation is empty.")
-
-    if not isinstance(cited_reason_codes, list) or not all(
-        isinstance(item, str) for item in cited_reason_codes
-    ):
-        raise ValueError("Invalid reason code citations from LLM.")
-
-    if not isinstance(cited_policy_titles, list) or not all(
-        isinstance(item, str) for item in cited_policy_titles
-    ):
-        raise ValueError("Invalid policy citations from LLM.")
-
-    allowed_reason_codes = _allowed_reason_codes(payload)
-    if any(code not in allowed_reason_codes for code in cited_reason_codes):
-        raise ValueError("LLM cited unsupported reason codes.")
-
-    allowed_policy_titles = _allowed_policy_titles(payload)
-    if any(title not in allowed_policy_titles for title in cited_policy_titles):
-        raise ValueError("LLM cited unsupported policy titles.")
-
-    allowed_metric_strings = _allowed_metric_strings(fallback)
-    numeric_tokens = re.findall(r"\b\d+\.\d+\b", reasons)
-    if any(token not in allowed_metric_strings for token in numeric_tokens):
-        raise ValueError("LLM introduced unsupported numeric claims.")
-
-    return reasons.strip(), cited_reason_codes, cited_policy_titles
-
-
-def _generate_llm_reason_text(
-    payload: ExplanationRequest,
-    fallback: ExplanationResponse,
-) -> tuple[str, list[str], list[str]]:
-    if not settings.OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY is not configured.")
-
-    prompt_payload = _build_grounded_llm_prompt(payload, fallback)
+    decision_payload = payload.decision_payload
+    system_prompt = (
+        "You are a credit-risk explanation assistant for a loan underwriting system. "
+        "Your job is to explain the final recommendation to a client in clear, professional language. "
+        "Important rules: "
+        "The decision has already been made by the decision maker. Do not change it. "
+        "Use only the evidence provided. "
+        "Do not invent policies, thresholds, facts, or reasons. "
+        "Do not mention any number unless it appears in the evidence. "
+        "If evidence is insufficient, say the explanation is unavailable. "
+        "Keep the tone professional, concise, and easy for a non-technical client to understand. "
+        "Group the explanation into one summary, supporting evidence, and cautionary evidence. "
+        "Each evidence point must cite one or more of these source labels only: "
+        "default_risk, anomaly_detection, ai_decision. "
+        "Each evidence item should be a complete, client-facing explanation of why that signal supports or cautions the decision, "
+        "not just a short feature restatement. "
+        "Prefer 1 to 2 full sentences per evidence item. "
+        "Explain the implication of the signal in plain language. "
+        "Whenever a metric or feature is relevant, include the exact numeric value or categorical value from the evidence payload. "
+        "If you mention default risk, include the default probability. "
+        "If you mention anomaly, include the anomaly score. "
+        "If you mention a top feature, include its actual value where available. "
+        "Do not use vague phrases like moderate risk, elevated concern, or normal range unless you tie them directly to the provided values. "
+        "Avoid brackets, shorthand labels, or parenthetical source mentions inside the text itself because sources are provided separately. "
+        "Return valid JSON only."
+    )
     body = {
         "model": settings.EXPLANATION_MODEL,
-        "instructions": (
-            "You are a credit decision explanation assistant. "
-            "The recommendation is already decided and cannot be changed. "
-            "Use only the evidence provided. "
-            "Do not add thresholds, policies, facts, or reasons that are not present. "
-            "Do not mention any numeric values except the provided probability of default and anomaly score. "
-            "Write one concise paragraph for the explanation."
-        ),
-        "input": json.dumps(prompt_payload),
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "grounded_credit_explanation",
+        "messages": [
+            {
+                "role": "system",
+                "content": system_prompt,
+            },
+            {
+                "role": "user",
+                "content": json.dumps(decision_payload.model_dump()),
+            },
+        ],
+        "temperature": 0.1,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "grounded_credit_explanation_v2",
                 "strict": True,
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "reasons": {"type": "string"},
-                        "used_reason_codes": {
+                        "summary": {"type": "string"},
+                        "supporting_evidence": {
                             "type": "array",
-                            "items": {"type": "string"},
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "text": {"type": "string"},
+                                    "sources": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "enum": ["default_risk", "anomaly_detection", "ai_decision"],
+                                        },
+                                    },
+                                },
+                                "required": ["text", "sources"],
+                                "additionalProperties": False,
+                            },
                         },
-                        "used_policy_titles": {
+                        "cautionary_evidence": {
                             "type": "array",
-                            "items": {"type": "string"},
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "text": {"type": "string"},
+                                    "sources": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "enum": ["default_risk", "anomaly_detection", "ai_decision"],
+                                        },
+                                    },
+                                },
+                                "required": ["text", "sources"],
+                                "additionalProperties": False,
+                            },
                         },
                     },
-                    "required": ["reasons", "used_reason_codes", "used_policy_titles"],
+                    "required": ["summary", "supporting_evidence", "cautionary_evidence"],
                     "additionalProperties": False,
                 },
-            }
+            },
         },
     }
 
     response = httpx.post(
-        f"{settings.OPENAI_BASE_URL}/responses",
+        settings.OPENROUTER_BASE_URL,
         headers={
-            "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
+            "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
+            "HTTP-Referer": settings.OPENROUTER_HTTP_REFERER,
+            "X-Title": settings.OPENROUTER_APP_TITLE,
         },
         json=body,
         timeout=settings.EXPLANATION_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
     parsed = json.loads(_extract_response_text(response.json()))
-    return _validate_llm_output(parsed, payload, fallback)
+    return _validate_llm_output(parsed, decision_payload)
 
 
 def build_explanation(payload: ExplanationRequest) -> ExplanationResponse:
-    fallback = _build_base_explanation(payload)
-
     try:
-        reasons, cited_reason_codes, cited_policy_titles = _generate_llm_reason_text(
-            payload, fallback
+        summary, supporting_evidence, cautionary_evidence = _generate_llm_explanation(
+            payload
         )
-        fallback.reasons = reasons
-        if cited_reason_codes:
-            fallback.reason_codes = cited_reason_codes
-        if cited_policy_titles:
-            fallback.policy_references = cited_policy_titles
-        return fallback
+        decision_payload = payload.decision_payload
+        return ExplanationResponse(
+            application_id=payload.application_id,
+            overall_decision=decision_payload.overall_decision.decision,
+            key_metrics=ExplanationKeyMetrics(
+                probability_of_default=decision_payload.default_risk.default_probability,
+                anomaly_score=decision_payload.anomaly_detection.anomaly_score,
+                risk_band=decision_payload.default_risk.risk_band,
+                anomaly_band=decision_payload.anomaly_detection.anomaly_band,
+            ),
+            summary=summary,
+            supporting_evidence=supporting_evidence,
+            cautionary_evidence=cautionary_evidence,
+            limitations=[],
+        )
     except Exception as exc:
-        fallback.limitations.append(
-            f"LLM explanation unavailable; used deterministic fallback ({str(exc)})."
-        )
-        return fallback
+        return _unavailable_response(payload, f"LLM explanation unavailable ({str(exc)}).")
