@@ -5,14 +5,16 @@ type ProcessingBarProps = {
 };
 
 export default function ProcessingBar({ active, progress, stageLabel }: ProcessingBarProps) {
-  if (!active) {
+  if (!active && progress <= 0) {
     return null;
   }
 
   return (
     <section className="surface-card p-6">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-600">Processing Application</p>
+        <p className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-600">
+          {active ? "Processing Application" : "Last Known Progress"}
+        </p>
         <p className="text-sm font-semibold text-slate-900">{Math.round(progress)}%</p>
       </div>
       <p className="mt-2 text-sm text-slate-700">{stageLabel}</p>

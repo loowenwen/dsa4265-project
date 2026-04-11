@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ApplicantForm from "../components/ApplicantForm";
 import ProcessingBar from "../components/ProcessingBar";
@@ -9,6 +9,13 @@ import { ApiValidationError, explainApplication, processApplicant } from "../../
 import { FileParseError, parseApplicantFile } from "../../lib/applicantFileParser";
 import { EMPTY_FORM_VALUES, REQUIRED_FIELDS } from "../../lib/applicantForm";
 import { saveResultBundle } from "../../lib/resultStore";
+import {
+  clearActiveRun,
+  createActiveRun,
+  isActiveRunFresh,
+  loadActiveRun,
+  saveActiveRun,
+} from "../../lib/runState";
 import { ProcessRequest } from "../../types/api";
 
 const PROCESS_STEPS = {
@@ -31,8 +38,32 @@ export default function ApplyPage() {
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState<string>(PROCESS_STEPS.validating.label);
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [runNotice, setRunNotice] = useState<string | null>(null);
 
   const tickerRef = useRef<number | null>(null);
+  const activeRunIdRef = useRef<string | null>(null);
+
+  const persistActiveRun = (updates: {
+    progress?: number;
+    stageLabel?: string;
+    status?: "running" | "completed" | "failed";
+  }) => {
+    const runId = activeRunIdRef.current;
+    if (!runId) {
+      return;
+    }
+
+    const activeRun = loadActiveRun();
+    if (!activeRun || activeRun.runId !== runId) {
+      return;
+    }
+
+    saveActiveRun({
+      ...activeRun,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
+  };
 
   const stopTicker = () => {
     if (tickerRef.current !== null) {
@@ -49,18 +80,51 @@ export default function ApplyPage() {
           return current;
         }
         const next = current + Math.random() * 5 + 1;
-        return Math.min(92, next);
+        const resolved = Math.min(92, next);
+        persistActiveRun({ progress: resolved });
+        return resolved;
       });
     }, 350);
   };
+
+  useEffect(() => {
+    const activeRun = loadActiveRun();
+    if (!activeRun) {
+      return;
+    }
+
+    if (activeRun.status === "running" && isActiveRunFresh(activeRun)) {
+      activeRunIdRef.current = activeRun.runId;
+      setProgress(activeRun.progress);
+      setProgressLabel(activeRun.stageLabel);
+      setRunNotice(
+        "A previous analysis is still marked in progress. To avoid duplicate runs, wait before submitting again.",
+      );
+      return;
+    }
+
+    clearActiveRun(activeRun.runId);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopTicker();
+    };
+  }, []);
 
   const advanceProgress = (next: number) => {
     setProgress((current) => Math.max(current, next));
   };
 
   const setStep = (step: keyof typeof PROCESS_STEPS) => {
-    advanceProgress(PROCESS_STEPS[step].progress);
-    setProgressLabel(PROCESS_STEPS[step].label);
+    const stepConfig = PROCESS_STEPS[step];
+    advanceProgress(stepConfig.progress);
+    setProgressLabel(stepConfig.label);
+    persistActiveRun({
+      progress: stepConfig.progress,
+      stageLabel: stepConfig.label,
+      status: "running",
+    });
   };
 
   const handleChange = (field: keyof ProcessRequest, value: string) => {
@@ -96,7 +160,21 @@ export default function ApplyPage() {
 
   const handleSubmit = async () => {
     setGlobalError(null);
+    setRunNotice(null);
     setProgress(0);
+
+    const inFlightRun = loadActiveRun();
+    if (inFlightRun && inFlightRun.status === "running" && isActiveRunFresh(inFlightRun)) {
+      activeRunIdRef.current = inFlightRun.runId;
+      setProgress(inFlightRun.progress);
+      setProgressLabel(inFlightRun.stageLabel);
+      setGlobalError("Another analysis is already in progress. Please wait for it to complete.");
+      return;
+    }
+    if (inFlightRun && !isActiveRunFresh(inFlightRun)) {
+      clearActiveRun(inFlightRun.runId);
+      activeRunIdRef.current = null;
+    }
 
     const clientErrors: Record<string, string> = {};
     for (const key of REQUIRED_FIELDS) {
@@ -113,8 +191,11 @@ export default function ApplyPage() {
 
     setFieldErrors({});
     setIsSubmitting(true);
-    advanceProgress(8);
-    setProgressLabel("Starting analysis");
+    const activeRun = createActiveRun(8, "Starting analysis");
+    activeRunIdRef.current = activeRun.runId;
+    saveActiveRun(activeRun);
+    advanceProgress(activeRun.progress);
+    setProgressLabel(activeRun.stageLabel);
     startTicker();
 
     try {
@@ -138,12 +219,18 @@ export default function ApplyPage() {
       });
 
       setStep("finalizing");
+      persistActiveRun({ progress: 100, status: "completed" });
       stopTicker();
+      clearActiveRun(activeRunIdRef.current ?? undefined);
+      activeRunIdRef.current = null;
       window.setTimeout(() => {
         router.push("/result");
       }, 280);
     } catch (error) {
       stopTicker();
+      persistActiveRun({ status: "failed" });
+      clearActiveRun(activeRunIdRef.current ?? undefined);
+      activeRunIdRef.current = null;
 
       if (error instanceof ApiValidationError) {
         const nextFieldErrors: Record<string, string> = {};
@@ -186,6 +273,12 @@ export default function ApplyPage() {
 
         <div className="space-y-6">
           <ProcessingBar active={isSubmitting} progress={progress} stageLabel={progressLabel} />
+
+          {runNotice ? (
+            <section className="rounded-2xl border border-blue-300 bg-blue-50 px-5 py-4 text-sm text-blue-800">
+              {runNotice}
+            </section>
+          ) : null}
 
           <section className="surface-card p-7">
             <h2 className="text-xl font-semibold text-slate-900">What Happens Next</h2>

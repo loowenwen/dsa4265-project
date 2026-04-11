@@ -3,12 +3,55 @@ import { ExplanationResponse, ProcessResponse } from "../types/api";
 export const RESULT_STORAGE_KEY = "applicant_processor_latest_result";
 export const RESULT_HISTORY_STORAGE_KEY = "applicant_processor_result_history";
 export const MAX_RESULT_HISTORY = 6;
+const DUPLICATE_TIME_WINDOW_MS = 2 * 60 * 1000;
 
 export type StoredResultBundle = {
   submittedAt: string;
   process: ProcessResponse;
   explanation: ExplanationResponse;
 };
+
+function safeTimestamp(iso: string): number | null {
+  const ts = new Date(iso).getTime();
+  return Number.isNaN(ts) ? null : ts;
+}
+
+function buildBundleFingerprint(bundle: StoredResultBundle): string {
+  return JSON.stringify({
+    overall_decision: bundle.explanation.overall_decision,
+    summary: bundle.explanation.summary,
+    key_metrics: bundle.explanation.key_metrics,
+    supporting_evidence: bundle.explanation.supporting_evidence,
+    cautionary_evidence: bundle.explanation.cautionary_evidence,
+    limitations: bundle.explanation.limitations,
+    decision_payload: bundle.process.decision_payload,
+  });
+}
+
+function isLikelyDuplicateBundle(a: StoredResultBundle, b: StoredResultBundle): boolean {
+  if (buildBundleFingerprint(a) !== buildBundleFingerprint(b)) {
+    return false;
+  }
+
+  const aTime = safeTimestamp(a.submittedAt);
+  const bTime = safeTimestamp(b.submittedAt);
+  if (aTime === null || bTime === null) {
+    return false;
+  }
+
+  return Math.abs(aTime - bTime) <= DUPLICATE_TIME_WINDOW_MS;
+}
+
+function dedupeHistory(history: StoredResultBundle[]): StoredResultBundle[] {
+  const deduped: StoredResultBundle[] = [];
+  for (const item of history) {
+    const alreadyExists = deduped.some((existing) => isLikelyDuplicateBundle(existing, item));
+    if (!alreadyExists) {
+      deduped.push(item);
+    }
+  }
+  return deduped;
+}
 
 function parseStoredBundle(raw: string): StoredResultBundle | null {
   try {
@@ -44,7 +87,7 @@ export function loadResultHistory(): StoredResultBundle[] {
 
   const historyRaw = window.sessionStorage.getItem(RESULT_HISTORY_STORAGE_KEY);
   if (historyRaw) {
-    return parseStoredHistory(historyRaw);
+    return dedupeHistory(parseStoredHistory(historyRaw));
   }
 
   // Backward compatibility with old single-result storage.
@@ -54,7 +97,7 @@ export function loadResultHistory(): StoredResultBundle[] {
   }
 
   const parsed = parseStoredBundle(latestRaw);
-  return parsed ? [parsed] : [];
+  return parsed ? dedupeHistory([parsed]) : [];
 }
 
 export function saveResultBundle(bundle: StoredResultBundle): void {
@@ -62,8 +105,10 @@ export function saveResultBundle(bundle: StoredResultBundle): void {
     return;
   }
 
-  const existing = loadResultHistory().filter((item) => item.submittedAt !== bundle.submittedAt);
-  const nextHistory = [bundle, ...existing].slice(0, MAX_RESULT_HISTORY);
+  const existing = loadResultHistory().filter(
+    (item) => item.submittedAt !== bundle.submittedAt && !isLikelyDuplicateBundle(item, bundle),
+  );
+  const nextHistory = dedupeHistory([bundle, ...existing]).slice(0, MAX_RESULT_HISTORY);
 
   window.sessionStorage.setItem(RESULT_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
   // Keep latest-result key for compatibility with existing consumers.

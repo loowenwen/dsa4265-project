@@ -31,14 +31,15 @@ function EvidenceList({
   title,
 }: {
   items: ExplanationEvidenceItem[];
-  tone: "green" | "red";
+  tone: "neutral" | "warning";
   title: string;
 }) {
   if (items.length === 0) {
     return null;
   }
 
-  const toneClasses = tone === "green" ? "border-emerald-200 bg-emerald-50/70" : "border-rose-200 bg-rose-50/70";
+  const toneClasses =
+    tone === "neutral" ? "border-slate-200 bg-slate-50/85" : "border-rose-200 bg-rose-50/70";
 
   return (
     <div>
@@ -113,8 +114,16 @@ export default function ExplanationCard({ explanation, decisionPayload }: Explan
           </div>
         </div>
 
-        <EvidenceList items={explanation.supporting_evidence} tone="green" title="Supporting Evidence" />
-        <EvidenceList items={explanation.cautionary_evidence} tone="red" title="Cautionary Evidence" />
+        <EvidenceList
+          items={explanation.supporting_evidence}
+          tone="neutral"
+          title="Supporting Evidence"
+        />
+        <EvidenceList
+          items={explanation.cautionary_evidence}
+          tone="warning"
+          title="Cautionary Evidence"
+        />
 
         {explanation.limitations.length > 0 ? (
           <div>
