@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { sendChatMessage } from "../../lib/api";
 import { clearChatState, loadChatState, saveChatState } from "../../lib/chatStore";
@@ -27,6 +27,94 @@ function buildMessage(
     llm_used: extras?.llm_used,
     created_at: new Date().toISOString(),
   };
+}
+
+function renderInlineMarkdown(text: string, keyPrefix: string): ReactNode[] {
+  return text
+    .split(/(\*\*[^*]+\*\*)/g)
+    .filter((part) => part.length > 0)
+    .map((part, index) => {
+      const key = `${keyPrefix}-${index}`;
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        return <strong key={key}>{part.slice(2, -2)}</strong>;
+      }
+      return <span key={key}>{part}</span>;
+    });
+}
+
+function renderAssistantContent(content: string): ReactNode {
+  const normalized = content.replace(/\r/g, "");
+  const lines = normalized.split("\n");
+  const blocks: ReactNode[] = [];
+
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index].trim();
+
+    if (!line) {
+      index += 1;
+      continue;
+    }
+
+    const numberedMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (numberedMatch) {
+      const listItems: string[] = [];
+      while (index < lines.length) {
+        const candidate = lines[index].trim();
+        const candidateMatch = candidate.match(/^\d+\.\s+(.+)$/);
+        if (!candidateMatch) {
+          break;
+        }
+        listItems.push(candidateMatch[1]);
+        index += 1;
+      }
+
+      blocks.push(
+        <ol key={`ol-${blocks.length}`} className="ml-5 list-decimal space-y-1">
+          {listItems.map((item, itemIndex) => (
+            <li key={`ol-item-${blocks.length}-${itemIndex}`}>{renderInlineMarkdown(item, `ol-${blocks.length}-${itemIndex}`)}</li>
+          ))}
+        </ol>,
+      );
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      const listItems: string[] = [];
+      while (index < lines.length) {
+        const candidate = lines[index].trim();
+        const candidateMatch = candidate.match(/^[-*]\s+(.+)$/);
+        if (!candidateMatch) {
+          break;
+        }
+        listItems.push(candidateMatch[1]);
+        index += 1;
+      }
+
+      blocks.push(
+        <ul key={`ul-${blocks.length}`} className="ml-5 list-disc space-y-1">
+          {listItems.map((item, itemIndex) => (
+            <li key={`ul-item-${blocks.length}-${itemIndex}`}>{renderInlineMarkdown(item, `ul-${blocks.length}-${itemIndex}`)}</li>
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+
+    blocks.push(
+      <p key={`p-${blocks.length}`} className="whitespace-pre-wrap">
+        {renderInlineMarkdown(lines[index], `p-${blocks.length}`)}
+      </p>,
+    );
+    index += 1;
+  }
+
+  if (blocks.length === 0) {
+    return <p className="whitespace-pre-wrap">{content}</p>;
+  }
+
+  return <div className="space-y-1.5">{blocks}</div>;
 }
 
 export default function FloatingChatWidget() {
@@ -197,7 +285,11 @@ export default function FloatingChatWidget() {
                     : "border border-slate-200 bg-white text-slate-900"
                 }`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                {message.role === "assistant" ? (
+                  renderAssistantContent(message.content)
+                ) : (
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                )}
 
                 {message.role === "assistant" ? (
                   <div className="mt-2 space-y-1.5">

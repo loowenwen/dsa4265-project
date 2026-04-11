@@ -54,8 +54,12 @@ export default function ApplyPage() {
     }, 350);
   };
 
+  const advanceProgress = (next: number) => {
+    setProgress((current) => Math.max(current, next));
+  };
+
   const setStep = (step: keyof typeof PROCESS_STEPS) => {
-    setProgress(PROCESS_STEPS[step].progress);
+    advanceProgress(PROCESS_STEPS[step].progress);
     setProgressLabel(PROCESS_STEPS[step].label);
   };
 
@@ -92,6 +96,7 @@ export default function ApplyPage() {
 
   const handleSubmit = async () => {
     setGlobalError(null);
+    setProgress(0);
 
     const clientErrors: Record<string, string> = {};
     for (const key of REQUIRED_FIELDS) {
@@ -108,7 +113,7 @@ export default function ApplyPage() {
 
     setFieldErrors({});
     setIsSubmitting(true);
-    setProgress(8);
+    advanceProgress(8);
     setProgressLabel("Starting analysis");
     startTicker();
 
