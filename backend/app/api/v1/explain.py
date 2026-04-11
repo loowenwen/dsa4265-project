@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.models.schemas import ExplanationRequest, ExplanationResponse
-from app.services.explainer import build_explanation
+from app.services.explanation.explainer import build_explanation
 
 router = APIRouter()
 

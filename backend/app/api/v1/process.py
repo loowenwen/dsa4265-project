@@ -8,11 +8,14 @@ from app.models.schemas import (
     PolicySupport,
     ExplanationMemo,
 )
-from app.services.adapters.form_adapter import FormInputAdapter
-from app.services.decision_payload_builder import build_consolidated_decision_payload
-from app.services.pipeline import build_process_response
-from app.services import providers
-from app.services.decision_engine import run_dual_engine
+from app.services.decisioning.decision_engine import run_dual_engine
+from app.services.decisioning.decision_payload_builder import (
+    build_consolidated_decision_payload,
+)
+from app.services.ingestion.adapters.form_adapter import FormInputAdapter
+from app.services.ingestion.pipeline import build_process_response
+from app.services.modeling import providers
+from app.services.modeling.exceptions import ModelUnavailableError
 
 router = APIRouter()
 
@@ -27,8 +30,31 @@ def process_applicant(payload: ProcessRequest) -> ProcessResponse:
 
     base_response = build_process_response(parsed)
 
-    default_output = providers.get_default_model_output(base_response.feature_vector)
-    anomaly_output = providers.get_anomaly_model_output(base_response.feature_vector)
+    try:
+        default_output = providers.get_default_model_output(base_response.feature_vector)
+    except ModelUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error_code": "default_model_unavailable",
+                "message": "Default risk model is unavailable.",
+                "model_path": exc.model_path,
+                "cause": exc.cause,
+            },
+        ) from exc
+    try:
+        anomaly_output = providers.get_anomaly_model_output(base_response.feature_vector)
+    except ModelUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error_code": "anomaly_model_unavailable",
+                "message": "Anomaly detection model is unavailable.",
+                "model_path": exc.model_path,
+                "cause": exc.cause,
+            },
+        ) from exc
+
     policy_output = providers.get_policy_retrieval_output(base_response.feature_vector)
 
     data_quality = DataQuality(
