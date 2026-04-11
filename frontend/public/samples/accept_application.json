@@ -1,0 +1,13 @@
+{
+  "person_age": "36",
+  "person_income": "120000",
+  "person_home_ownership": "MORTGAGE",
+  "person_emp_length": "9 years",
+  "loan_intent": "HOMEIMPROVEMENT",
+  "loan_grade": "A",
+  "loan_amnt": "9000",
+  "loan_int_rate": "7.2%",
+  "loan_percent_income": "7%",
+  "cb_person_default_on_file": "N",
+  "cb_person_cred_hist_length": "12"
+}

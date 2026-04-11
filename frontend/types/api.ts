@@ -10,7 +10,6 @@ export type ProcessRequest = {
   loan_percent_income: string;
   cb_person_default_on_file: string;
   cb_person_cred_hist_length: string;
-  additional_information?: string;
 };
 
 export type FieldStatus = "identified" | "cannot_identify";

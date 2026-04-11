@@ -14,12 +14,14 @@ interface DecisionCardProps {
   defaultModel: DefaultModelOutput | null;
   anomalyModel: AnomalyModelOutput | null;
   policyOutput: PolicyRetrievalOutput | null;
+  withContainer?: boolean;
+  showTitle?: boolean;
 }
 
 function badge(decision?: string | null) {
   if (decision === "APPROVE") return "bg-emerald-100 text-emerald-800";
-  if (decision === "REJECT") return "bg-red-100 text-red-800";
-  return "bg-amber-100 text-amber-800";
+  if (decision === "REJECT") return "bg-rose-100 text-rose-800";
+  return "bg-blue-100 text-blue-800";
 }
 
 export default function DecisionCard({
@@ -29,6 +31,8 @@ export default function DecisionCard({
   defaultModel,
   anomalyModel,
   policyOutput,
+  withContainer = true,
+  showTitle = true,
 }: DecisionCardProps) {
   if (!ruleDecision && !aiDecision) return null;
 
@@ -36,14 +40,14 @@ export default function DecisionCard({
   const anomalyScore = anomalyModel?.anomaly_score ?? null;
   const policyRules = policyOutput?.retrieved_rules ?? [];
 
-  return (
-    <section className="rounded-lg bg-white p-6 shadow">
+  const content = (
+    <>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Decisions</h2>
+        {showTitle ? <h2 className="text-lg font-semibold text-slate-900">Decision Breakdown</h2> : <span />}
         {alignment ? (
           <span
             className={`rounded px-3 py-1 text-xs font-semibold uppercase ${
-              alignment.status === "AGREE" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+              alignment.status === "AGREE" ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
             }`}
           >
             {alignment.status}
@@ -68,7 +72,7 @@ export default function DecisionCard({
           ) : null}
         </div>
 
-        <div className="grid gap-2 border-t border-slate-100 pt-3">
+        <div className="grid gap-2 border-t border-slate-200 pt-3">
           <div className="flex items-center justify-between">
             <span className="text-slate-500">AI Decision</span>
             <span className={`rounded px-2 py-1 text-xs font-semibold uppercase ${badge(aiDecision?.decision)}`}>
@@ -84,26 +88,28 @@ export default function DecisionCard({
           ) : null}
         </div>
 
-        <div className="grid gap-1 border-t border-slate-100 pt-3">
+        <div className="grid gap-1 border-t border-slate-200 pt-3">
           <div className="flex justify-between">
             <span className="text-slate-500">Default Probability</span>
-            <span className="font-medium">{defaultProb !== null ? defaultProb.toFixed(2) : "-"}</span>
+            <span className="font-semibold text-slate-900">{defaultProb !== null ? defaultProb.toFixed(2) : "-"}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-500">Anomaly Score</span>
-            <span className="font-medium">{anomalyScore !== null ? anomalyScore.toFixed(2) : "-"}</span>
+            <span className="font-semibold text-slate-900">{anomalyScore !== null ? anomalyScore.toFixed(2) : "-"}</span>
           </div>
         </div>
 
         {policyRules.length > 0 ? (
-          <div className="border-t border-slate-100 pt-3">
+          <div className="border-t border-slate-200 pt-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Policy Snippets</h3>
             <ul className="mt-2 space-y-2">
               {policyRules.map((rule, idx) => (
-                <li key={`${rule.rule_id || idx}`} className="rounded border border-slate-200 p-2">
+                <li key={`${rule.rule_id || idx}`} className="rounded border border-slate-200 bg-slate-50 p-2">
                   <div className="flex items-center justify-between text-xs text-slate-500">
                     <span>{rule.title || "Policy"}</span>
-                    {rule.severity ? <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] uppercase">{rule.severity}</span> : null}
+                    {rule.severity ? (
+                      <span className="rounded bg-white px-2 py-0.5 text-[11px] uppercase">{rule.severity}</span>
+                    ) : null}
                   </div>
                   <p className="text-sm text-slate-700">{rule.snippet}</p>
                 </li>
@@ -112,6 +118,12 @@ export default function DecisionCard({
           </div>
         ) : null}
       </div>
-    </section>
+    </>
   );
+
+  if (!withContainer) {
+    return <div>{content}</div>;
+  }
+
+  return <section className="surface-card p-6">{content}</section>;
 }

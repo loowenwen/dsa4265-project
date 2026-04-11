@@ -4,8 +4,30 @@
 
 :root {
   color-scheme: light;
+  --bg-main: #eef2f8;
+  --bg-alt: #e6ecf5;
+  --ink: #0f172a;
+  --card: #ffffff;
+  --card-border: #cbd5e1;
 }
 
 body {
-  @apply min-h-screen bg-slate-100 text-slate-900;
+  @apply min-h-screen antialiased text-slate-900;
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 15% 12%, rgba(59, 130, 246, 0.1), transparent 34%),
+    radial-gradient(circle at 86% 10%, rgba(99, 102, 241, 0.1), transparent 30%),
+    linear-gradient(180deg, var(--bg-main) 0%, var(--bg-alt) 100%);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+.warm-card,
+.surface-card {
+  @apply rounded-[1.2rem] border bg-white shadow-[0_18px_40px_-28px_rgba(15,23,42,0.25)];
+  border-color: var(--card-border);
 }
