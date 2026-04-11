@@ -14,7 +14,7 @@ const LABELS: Array<{ key: keyof FeatureVector; label: string }> = [
   { key: "loan_amnt", label: "Loan Amount" },
   { key: "loan_int_rate", label: "Interest Rate" },
   { key: "loan_percent_income", label: "Loan Percent Income" },
-  { key: "cb_person_default_on_file", label: "Default On File" },
+  { key: "cb_person_default_on_file", label: "Past Default on Credit File (Y/N)" },
   { key: "cb_person_cred_hist_length", label: "Credit History Length (years)" },
 ];
 

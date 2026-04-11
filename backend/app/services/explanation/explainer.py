@@ -58,19 +58,26 @@ def _validate_evidence_items(items: list[dict], allowed_numeric_tokens: set[str]
 
     for item in items:
         if not isinstance(item, dict):
-            raise ValueError("Evidence item must be an object.")
+            continue
         text = item.get("text")
         sources = item.get("sources", [])
+
+        # Be resilient to partial/malformed evidence items from the LLM:
+        # keep valid rows and drop invalid ones instead of failing the whole explanation.
         if not isinstance(text, str) or not text.strip():
-            raise ValueError("Evidence text is required.")
-        if not isinstance(sources, list) or not all(isinstance(src, str) for src in sources):
-            raise ValueError("Evidence sources must be a string list.")
-        if any(src not in ALLOWED_SOURCES for src in sources):
-            raise ValueError("Evidence cited unsupported source.")
+            continue
+        if not isinstance(sources, list):
+            sources = []
+        normalized_sources = [
+            src for src in sources if isinstance(src, str) and src in ALLOWED_SOURCES
+        ]
+
         numeric_tokens = re.findall(r"\b\d+(?:\.\d+)?\b", text)
         if any(token not in allowed_numeric_tokens for token in numeric_tokens):
-            raise ValueError("Evidence introduced unsupported numeric claims.")
-        validated.append(ExplanationEvidenceItem(text=text.strip(), sources=sources))
+            continue
+        validated.append(
+            ExplanationEvidenceItem(text=text.strip(), sources=normalized_sources)
+        )
 
     return validated
 
@@ -146,13 +153,13 @@ def _generate_llm_explanation(
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "summary": {"type": "string"},
+                        "summary": {"type": "string", "minLength": 1},
                         "supporting_evidence": {
                             "type": "array",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "text": {"type": "string"},
+                                    "text": {"type": "string", "minLength": 1},
                                     "sources": {
                                         "type": "array",
                                         "items": {
@@ -170,7 +177,7 @@ def _generate_llm_explanation(
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "text": {"type": "string"},
+                                    "text": {"type": "string", "minLength": 1},
                                     "sources": {
                                         "type": "array",
                                         "items": {

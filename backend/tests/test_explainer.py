@@ -115,6 +115,37 @@ class ExplainerTests(unittest.TestCase):
 
     @patch("app.services.explainer.httpx.post")
     @patch("app.services.explainer.settings.OPENROUTER_API_KEY", "test-key")
+    def test_build_explanation_skips_empty_evidence_item_instead_of_failing(self, mock_post):
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": (
+                            '{"summary":"Manual review remains appropriate based on the provided risk '
+                            'and anomaly signals.","supporting_evidence":[{"text":"",'
+                            '"sources":["default_risk"]},{"text":"Anomaly score is 0.18 and indicates '
+                            'normal profile distance.","sources":["anomaly_detection"]}],'
+                            '"cautionary_evidence":[]}'
+                        )
+                    }
+                }
+            ]
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_post.return_value = mock_response
+
+        response = build_explanation(
+            ExplanationRequest(application_id="app-790", decision_payload=self._decision_payload())
+        )
+
+        self.assertNotIn("Explanation unavailable", response.summary)
+        self.assertEqual(len(response.supporting_evidence), 1)
+        self.assertEqual(response.supporting_evidence[0].sources, ["anomaly_detection"])
+        self.assertEqual(response.limitations, [])
+
+    @patch("app.services.explainer.httpx.post")
+    @patch("app.services.explainer.settings.OPENROUTER_API_KEY", "test-key")
     def test_build_explanation_returns_unavailable_when_llm_hallucinates_number(self, mock_post):
         mock_response = Mock()
         mock_response.json.return_value = {

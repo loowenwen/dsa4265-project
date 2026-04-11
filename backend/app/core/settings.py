@@ -7,7 +7,7 @@ DTI_MEDIUM_THRESHOLD = 43.0
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-EXPLANATION_MODEL = os.getenv("EXPLANATION_MODEL", "gpt-4o-mini")
+EXPLANATION_MODEL = os.getenv("EXPLANATION_MODEL", "openai/gpt-oss-120b:free")
 EXPLANATION_TIMEOUT_SECONDS = float(os.getenv("EXPLANATION_TIMEOUT_SECONDS", "20"))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_BASE_URL = os.getenv(

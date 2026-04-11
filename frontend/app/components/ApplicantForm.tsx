@@ -36,12 +36,19 @@ const SELECT_OPTIONS = {
 const TEXT_FIELDS: Array<{ name: keyof FormValues; label: string; placeholder: string; type?: string }> = [
   { name: "person_age", label: "Person Age", placeholder: "35" },
   { name: "person_income", label: "Annual Income", placeholder: "85000" },
-  { name: "person_emp_length", label: "Employment Length", placeholder: "6 years" },
+  { name: "person_emp_length", label: "Employment Length (years)", placeholder: "6 years" },
   { name: "loan_amnt", label: "Loan Amount", placeholder: "12000" },
   { name: "loan_int_rate", label: "Loan Interest Rate (%)", placeholder: "11.5%" },
   { name: "loan_percent_income", label: "Loan Percent Income", placeholder: "10%" },
   { name: "cb_person_cred_hist_length", label: "Credit History Length (years)", placeholder: "8" },
 ];
+
+const SELECT_LABELS: Record<keyof typeof SELECT_OPTIONS, string> = {
+  person_home_ownership: "Home Ownership",
+  loan_intent: "Loan Intent",
+  loan_grade: "Loan Grade",
+  cb_person_default_on_file: "Past Default on Credit File (Y/N)",
+};
 
 export default function ApplicantForm({
   values,
@@ -84,7 +91,7 @@ export default function ApplicantForm({
       >).map((name) => (
         <div key={name} className="space-y-1">
           <label className="block text-sm font-medium text-slate-700" htmlFor={name}>
-            {name.replace(/_/g, " ").toUpperCase()} <span className="text-red-600">*</span>
+            {SELECT_LABELS[name]} <span className="text-red-600">*</span>
           </label>
           <select
             id={name}
