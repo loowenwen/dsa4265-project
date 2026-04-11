@@ -1,7 +1,7 @@
 import unittest
 
 from app.models.schemas import AIDecision, AnomalyModelOutput, DefaultModelOutput, TopFeature
-from app.services.decision_payload_builder import build_consolidated_decision_payload
+from app.services.decisioning.decision_payload_builder import build_consolidated_decision_payload
 
 
 class DecisionPayloadBuilderTests(unittest.TestCase):
@@ -41,6 +41,13 @@ class DecisionPayloadBuilderTests(unittest.TestCase):
                 missing_info=[],
                 policy_considerations=[],
             ),
+            decisions={
+                "default_risk_decision": "manual_review",
+                "anomaly_decision": "accept",
+                "ai_decision_label": "manual_review",
+                "overall_decision": "manual_review",
+                "decision_note": "Default risk and AI decision suggest manual review, while anomaly detection suggests accept.",
+            },
         )
 
         self.assertEqual(payload.overall_decision.decision, "manual_review")

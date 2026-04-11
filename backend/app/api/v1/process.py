@@ -65,7 +65,7 @@ def process_applicant(payload: ProcessRequest) -> ProcessResponse:
     )
 
     # New dual decision engine
-    rule_decision, ai_decision, alignment = run_dual_engine(
+    rule_decision, ai_decision, alignment, decisions = run_dual_engine(
         applicant=base_response.feature_vector.model_dump()
         if hasattr(base_response.feature_vector, "model_dump")
         else base_response.feature_vector.__dict__,
@@ -95,6 +95,7 @@ def process_applicant(payload: ProcessRequest) -> ProcessResponse:
         default_model_output=default_output,
         anomaly_model_output=anomaly_output,
         ai_decision=ai_decision,
+        decisions=decisions,
     )
 
     base_response.default_model_output = default_output
