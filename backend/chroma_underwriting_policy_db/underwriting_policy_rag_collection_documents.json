@@ -1,0 +1,276 @@
+[
+  {
+    "page_content": "Loans should not be approved for applicants as co-borrowers or joint borrowers unless a) reasonable steps have been taken to ensure that the co-borrower/joint-borrower understands the risks associated with entering into the loan and understand the; b) the licensee has taken into account the reasons why the applicant wants to be a co-borrowers or joint borrowers; and c) satisfied that the co-borrowers or joint borrowers is not experiencing any coercion or financial abuse.",
+    "metadata": {
+      "chunk_id": "policy_001",
+      "section_header": "RESIDENTIAL MORTGAGE UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "mortgage",
+      "loan_type": "residential_mortgage",
+      "title": "Co-borrower and joint borrower safeguards",
+      "keywords": [
+        "co-borrower",
+        "joint borrower",
+        "coercion",
+        "financial abuse",
+        "mortgage underwriting"
+      ]
+    }
+  },
+  {
+    "page_content": "For property valuation, a full valuation should be conducted, specifically, an on-site inspection on the underlying property, to be performed by either a qualified employee or an accredited professional appraiser, depending on the nature of the property or transaction, with a written report independently and impartially prepared thereafter. The report should provide \"an opinion\" with supporting justification as to the market value of the property. Its purpose is to establish a value for lending purposes.",
+    "metadata": {
+      "chunk_id": "policy_002",
+      "section_header": "RESIDENTIAL MORTGAGE UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "mortgage",
+      "loan_type": "residential_mortgage",
+      "title": "Full property valuation requirements",
+      "keywords": [
+        "property valuation",
+        "on-site inspection",
+        "market value",
+        "written report",
+        "mortgage underwriting"
+      ]
+    }
+  },
+  {
+    "page_content": "Licensees that use third-party valuators should ensure that they possess the appropriate professional appraisal skill and diligence, and that they are designated, or certified, and meet minimum qualification standards. In addition, valuators should be independent of the mortgage acquisition, loan processing and loan decision process. Licensees should also maintain and implement a framework for critically reviewing and, where appropriate, effectively challenging the assumptions and methodologies underlying property valuations. Realistic, substantiated and supportable valuations should be established to reflect the current price level and the property's function as collateral over the term of the mortgage.",
+    "metadata": {
+      "chunk_id": "policy_003",
+      "section_header": "RESIDENTIAL MORTGAGE UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "mortgage",
+      "loan_type": "residential_mortgage",
+      "title": "Third-party valuer independence and review",
+      "keywords": [
+        "third-party valuer",
+        "professional appraisal",
+        "independence",
+        "valuation methodology",
+        "collateral valuation"
+      ]
+    }
+  },
+  {
+    "page_content": "To manage credit risk, licensees should focus on the oversight of individual residential mortgage loans and the loan portfolio, particularly in balancing the risk of both mortgage loans and the loan portfolio in five key risk areas:\n1. LTV\n2. Credit Score\n3. GDSR/TDSR\n4. Amortisation\n5. Exceptions to policy",
+    "metadata": {
+      "chunk_id": "policy_004",
+      "section_header": "RESIDENTIAL MORTGAGE UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "mortgage",
+      "loan_type": "residential_mortgage",
+      "title": "Portfolio risk oversight priorities",
+      "keywords": [
+        "portfolio risk oversight",
+        "ltv",
+        "credit score",
+        "gdsr",
+        "tdsr",
+        "exceptions to policy"
+      ]
+    }
+  },
+  {
+    "page_content": "Licensees should have a stated maximum amortisation period for all residential mortgage loans that are underwritten. The ECCB expects the average amortisation period for mortgages underwritten to be less than the licensee's stated maximum, as articulated in its relevant policies.",
+    "metadata": {
+      "chunk_id": "policy_005",
+      "section_header": "RESIDENTIAL MORTGAGE UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "mortgage",
+      "loan_type": "residential_mortgage",
+      "title": "Amortisation policy limits",
+      "keywords": [
+        "amortisation",
+        "maximum amortisation period",
+        "average amortisation",
+        "mortgage policy"
+      ]
+    }
+  },
+  {
+    "page_content": "For residential mortgage loans, lenders should establish and adhere to loan-to-value (LTV) ratios in accordance with their internal policies, risk appetite, and any other relevant guiding documents. The LTV ratio may be prescribed by law or set by the institution based on risk factors and other considerations, including current and expected market conditions, the type of loan, and other factors that may affect a borrower's ability to service the debt or the lender's ability to realize on the collateral. The institution's LTV framework should be grounded in prudent credit risk management practices and procedures. The LTV ratio should be recalculated upon any refinancing, and whenever considered prudent in light of changes to the borrower's risk profile or delinquency status. In addition, lenders should use an appropriate valuation methodology that does not circumvent the institution's maximum LTV ratio or other limits set out in relevant policies, laws, or prudential standards. The relevant regulatory authority may also impose a ceiling on the LTV ratio where necessary to maintain financial stability.",
+    "metadata": {
+      "chunk_id": "policy_006",
+      "section_header": "RESIDENTIAL MORTGAGE UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "mortgage",
+      "loan_type": "residential_mortgage",
+      "title": "Residential mortgage LTV policy",
+      "keywords": [
+        "loan-to-value",
+        "ltv",
+        "refinancing",
+        "risk appetite",
+        "collateral",
+        "financial stability"
+      ]
+    }
+  },
+  {
+    "page_content": "Licensees are required to appropriately assess borrowers' ability to service and fully repay their loans without causing the borrower undue hardship and over-indebtedness. As part of this assessment, licensees should establish debt serviceability metrics (inclusive of the method to calculate these metrics), set prudent measures for debt serviceability (as articulated in relevant policies) and calculate each borrower's debt serviceability ratios for the purposes of assessing affordability.",
+    "metadata": {
+      "chunk_id": "policy_007",
+      "section_header": "RESIDENTIAL MORTGAGE UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "mortgage",
+      "loan_type": "residential_mortgage",
+      "title": "Debt serviceability assessment",
+      "keywords": [
+        "debt serviceability",
+        "affordability",
+        "repayment capacity",
+        "undue hardship",
+        "over-indebtedness"
+      ]
+    }
+  },
+  {
+    "page_content": "Two commonly used ratios are the Gross Debt Service Ratio (GDSR) and the Total Debt Service Ratio (TDSR). The ECCB expects the average GDSR and TDSR scores for all mortgages underwritten and/or acquired to be less than the licensee's stated maximums, as articulated in its policies, and reflect a reasonable distribution across the portfolio. Licensees should have clear policies with respect to the contributing factors for the calculation of the GDSR and TDSR, including, but not limited to:\n1. Principal and interest payment on the mortgage loan\n2. Primary and other sources of income\n3. Property taxes\n4. Fees (example strata/condominium fees or other fees, where applicable)\n5. Payments for all other credit facilities (example unsecured personal loan, second mortgage loan, credit cards et cetera); and\n6. Utilities, where applicable.",
+    "metadata": {
+      "chunk_id": "policy_008",
+      "section_header": "RESIDENTIAL MORTGAGE UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "mortgage",
+      "loan_type": "residential_mortgage",
+      "title": "GDSR and TDSR calculation policy",
+      "keywords": [
+        "gdsr",
+        "tdsr",
+        "property taxes",
+        "credit facilities",
+        "income sources",
+        "utilities"
+      ]
+    }
+  },
+  {
+    "page_content": "Applicants with rental housing status shall be subject to stricter underwriting standards due to the absence of asset ownership and higher observed default rates. The licensee must place stronger emphasis on affordability and repayment capacity, ensuring that the borrower's loan obligations remain conservative relative to income. In particular, the loan-to-income ratio must be tightly controlled, and loans exceeding moderate thresholds should not be approved without additional safeguards.",
+    "metadata": {
+      "chunk_id": "policy_009",
+      "section_header": "RENT LOAN UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "rent",
+      "loan_type": "rent",
+      "title": "Rent applicants require tighter affordability controls",
+      "keywords": [
+        "rent applicant",
+        "stricter underwriting",
+        "affordability",
+        "repayment capacity",
+        "loan-to-income ratio"
+      ]
+    }
+  },
+  {
+    "page_content": "Employment stability and income consistency must be verified, as renters are more vulnerable to income shocks and housing-related financial pressures. Credit history length should be carefully assessed, as shorter histories increase uncertainty in risk evaluation, and borrowers with limited credit records should not be automatically approved.",
+    "metadata": {
+      "chunk_id": "policy_010",
+      "section_header": "RENT LOAN UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "rent",
+      "loan_type": "rent",
+      "title": "Employment and credit checks for rent applicants",
+      "keywords": [
+        "employment stability",
+        "income consistency",
+        "credit history length",
+        "limited credit records",
+        "rent underwriting"
+      ]
+    }
+  },
+  {
+    "page_content": "Additionally, higher-risk loan intents, such as debt consolidation or medical loans, should trigger heightened scrutiny when combined with rental status.",
+    "metadata": {
+      "chunk_id": "policy_011",
+      "section_header": "RENT LOAN UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "rent",
+      "loan_type": "rent",
+      "title": "High-risk loan intents under rental status",
+      "keywords": [
+        "debt consolidation",
+        "medical loans",
+        "heightened scrutiny",
+        "rental status"
+      ]
+    }
+  },
+  {
+    "page_content": "Where multiple risk factors are present, including high loan burden, short employment tenure, or elevated interest rates, the application must be escalated to manual review or rejected. Overall, approval should only be granted when the borrower demonstrates strong repayment capacity, stable income, and no adverse credit history, despite the higher baseline risk associated with rental status.",
+    "metadata": {
+      "chunk_id": "policy_012",
+      "section_header": "RENT LOAN UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "rent",
+      "loan_type": "rent",
+      "title": "Manual review and approval thresholds for rent loans",
+      "keywords": [
+        "manual review",
+        "rejection",
+        "high loan burden",
+        "short employment tenure",
+        "elevated interest rates",
+        "adverse credit history"
+      ]
+    }
+  },
+  {
+    "page_content": "Applicants classified under \"other\" housing status represent a segment with limited information and higher uncertainty, and should therefore be subject to conservative underwriting standards.",
+    "metadata": {
+      "chunk_id": "policy_013",
+      "section_header": "OTHER LOAN UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "other",
+      "loan_type": "other",
+      "title": "Conservative underwriting for other housing status",
+      "keywords": [
+        "other housing status",
+        "limited information",
+        "higher uncertainty",
+        "conservative underwriting"
+      ]
+    }
+  },
+  {
+    "page_content": "In such cases, the licensee must place greater reliance on verifiable financial indicators, including income stability, employment history, credit history length, and repayment capacity.",
+    "metadata": {
+      "chunk_id": "policy_014",
+      "section_header": "OTHER LOAN UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "other",
+      "loan_type": "other",
+      "title": "Verifiable financial indicators for other-status applicants",
+      "keywords": [
+        "income stability",
+        "employment history",
+        "credit history length",
+        "repayment capacity",
+        "verifiable financial indicators"
+      ]
+    }
+  },
+  {
+    "page_content": "Given the absence of clear signals regarding asset ownership or housing stability, loan approval should not be granted unless the borrower demonstrates strong and consistent financial fundamentals, including low loan-to-income ratios and a clean credit history.",
+    "metadata": {
+      "chunk_id": "policy_015",
+      "section_header": "OTHER LOAN UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "other",
+      "loan_type": "other",
+      "title": "Approval threshold for other-status borrowers",
+      "keywords": [
+        "asset ownership",
+        "housing stability",
+        "loan-to-income ratio",
+        "clean credit history",
+        "financial fundamentals"
+      ]
+    }
+  },
+  {
+    "page_content": "Any ambiguity in borrower profile, including missing or inconsistent data, should result in escalation to manual review. Applications exhibiting multiple moderate risk factors or any major policy concerns should be rejected. This approach ensures that uncertainty arising from incomplete or atypical borrower profiles is appropriately managed and does not lead to excessive credit risk exposure.",
+    "metadata": {
+      "chunk_id": "policy_016",
+      "section_header": "OTHER LOAN UNDERWRITING PRACTICES AND PROCEDURES",
+      "category": "other",
+      "loan_type": "other",
+      "title": "Escalation and rejection triggers for other-status applications",
+      "keywords": [
+        "manual review",
+        "missing data",
+        "inconsistent data",
+        "multiple moderate risk factors",
+        "policy concerns",
+        "rejection"
+      ]
+    }
+  }
+]

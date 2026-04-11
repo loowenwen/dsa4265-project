@@ -224,3 +224,40 @@ export type ExplanationResponse = {
   cautionary_evidence: ExplanationEvidenceItem[];
   limitations: string[];
 };
+
+export type ChatCitation = {
+  chunk_id: string;
+  title: string;
+  section_header: string;
+  snippet: string;
+};
+
+export type ChatMemoryState = {
+  turn_count: number;
+  truncated: boolean;
+};
+
+export type ChatRequest = {
+  message: string;
+  session_id?: string | null;
+  decision_payload?: ConsolidatedDecisionPayload | null;
+};
+
+export type ChatResponse = {
+  session_id: string;
+  answer: string;
+  citations: ChatCitation[];
+  llm_used: boolean;
+  memory: ChatMemoryState;
+};
+
+export type ChatRole = "user" | "assistant";
+
+export type ChatTranscriptMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+  citations?: ChatCitation[];
+  llm_used?: boolean;
+  created_at: string;
+};

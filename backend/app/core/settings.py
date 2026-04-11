@@ -19,3 +19,8 @@ OPENROUTER_BASE_URL = os.getenv(
 )
 OPENROUTER_HTTP_REFERER = os.getenv("OPENROUTER_HTTP_REFERER", "http://localhost")
 OPENROUTER_APP_TITLE = os.getenv("OPENROUTER_APP_TITLE", "credit-risk-explainer")
+
+CHAT_MODEL = os.getenv("CHAT_MODEL", "openai/gpt-oss-120b:free")
+CHAT_TIMEOUT_SECONDS = float(os.getenv("CHAT_TIMEOUT_SECONDS", "20"))
+CHAT_MEMORY_MAX_TURNS = int(os.getenv("CHAT_MEMORY_MAX_TURNS", "6"))
+CHAT_MEMORY_TTL_SECONDS = int(os.getenv("CHAT_MEMORY_TTL_SECONDS", "1800"))

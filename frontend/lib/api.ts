@@ -1,4 +1,6 @@
 import {
+  ChatRequest,
+  ChatResponse,
   ExplanationRequest,
   ExplanationResponse,
   ProcessRequest,
@@ -51,6 +53,22 @@ export async function explainApplication(
 
   if (!response.ok) {
     throw new Error("Failed to generate explanation");
+  }
+
+  return response.json();
+}
+
+export async function sendChatMessage(payload: ChatRequest): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to send chat message");
   }
 
   return response.json();

@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class FieldStatus(str, Enum):
@@ -250,3 +250,37 @@ class ConsolidatedDecisionPayload(BaseModel):
 class ExplanationEvidenceItem(BaseModel):
     text: str
     sources: list[Literal["default_risk", "anomaly_detection", "ai_decision"]] = []
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1)
+    session_id: str | None = None
+    decision_payload: ConsolidatedDecisionPayload | None = None
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Message must not be empty.")
+        return cleaned
+
+
+class ChatCitation(BaseModel):
+    chunk_id: str
+    title: str
+    section_header: str
+    snippet: str
+
+
+class ChatMemoryState(BaseModel):
+    turn_count: int
+    truncated: bool = False
+
+
+class ChatResponse(BaseModel):
+    session_id: str
+    answer: str
+    citations: list[ChatCitation] = []
+    llm_used: bool
+    memory: ChatMemoryState

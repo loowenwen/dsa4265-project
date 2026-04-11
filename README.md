@@ -11,5 +11,6 @@
 - `app/services/decisioning/`: decision engine and consolidated payload builder.
 - `app/services/explanation/`: explanation agent interface/guardrails.
 - `app/services/policy/`: policy retrieval/RAG utilities.
+- `app/services/chat/`: financial policy chatbot orchestration with short-term memory.
 
 Legacy `app/services/*.py` files are compatibility wrappers to preserve existing imports.

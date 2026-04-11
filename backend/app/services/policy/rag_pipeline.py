@@ -9,9 +9,6 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
-import torch
-from sentence_transformers import SentenceTransformer
-from rank_bm25 import BM25Okapi
 
 LOGGER = logging.getLogger(__name__)
 

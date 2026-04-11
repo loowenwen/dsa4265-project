@@ -16,6 +16,8 @@ Backend for the applicant information processor, model scoring, orchestration, a
     - grounded explanation generation and validation
   - Policy: `backend/app/services/policy/`
     - policy RAG pipeline and policy chunk data
+  - Chat: `backend/app/services/chat/`
+    - policy retrieval, OpenRouter generation, and in-memory session context
 
 ## Backward Compatibility
 - Legacy flat import paths under `backend/app/services/*.py` remain as thin wrappers.
@@ -26,3 +28,9 @@ Backend for the applicant information processor, model scoring, orchestration, a
 - Optional env var: `EXPLANATION_MODEL` (default from `app/core/settings.py`).
 - Explanation generation is grounded by decision payload values and source labels.
 - On missing key/invalid output/hallucinated metrics, the API returns `Explanation unavailable`.
+
+## Chat API (MVP)
+- Endpoint: `POST /api/v1/chat`
+- Request: `message` (required), optional `session_id`, optional `decision_payload`.
+- Response: `session_id`, `answer`, `citations`, `llm_used`, and memory summary.
+- Memory is in-process only (TTL + turn cap), intended for MVP session continuity.

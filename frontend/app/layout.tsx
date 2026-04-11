@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Plus_Jakarta_Sans } from "next/font/google";
 
+import FloatingChatWidget from "./components/FloatingChatWidget";
 import TopNav from "./components/TopNav";
 import "./globals.css";
 
@@ -31,6 +32,7 @@ export default function RootLayout({
       <body className={`${fraunces.variable} ${jakarta.variable}`}>
         <TopNav />
         {children}
+        <FloatingChatWidget />
       </body>
     </html>
   );

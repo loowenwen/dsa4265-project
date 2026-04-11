@@ -7,6 +7,10 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - EXPLANATION_MODEL=${EXPLANATION_MODEL:-openai/gpt-oss-120b:free}
       - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1/chat/completions}
+      - CHAT_MODEL=${CHAT_MODEL:-openai/gpt-oss-120b:free}
+      - CHAT_TIMEOUT_SECONDS=${CHAT_TIMEOUT_SECONDS:-20}
+      - CHAT_MEMORY_MAX_TURNS=${CHAT_MEMORY_MAX_TURNS:-6}
+      - CHAT_MEMORY_TTL_SECONDS=${CHAT_MEMORY_TTL_SECONDS:-1800}
     volumes: # Mounting the backend code directly to the /app directory in the container for live code updates
       - ./backend:/app
 
