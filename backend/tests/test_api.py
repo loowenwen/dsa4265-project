@@ -1,4 +1,8 @@
 import unittest
+import csv
+import json
+import os
+from pathlib import Path
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -12,6 +16,34 @@ from app.services.exceptions import ModelUnavailableError
 
 
 class ApiTests(unittest.TestCase):
+    ACCEPT_SAMPLE_PAYLOAD = {
+        "person_age": "36",
+        "person_income": "120000",
+        "person_home_ownership": "MORTGAGE",
+        "person_emp_length": "9 years",
+        "loan_intent": "HOMEIMPROVEMENT",
+        "loan_grade": "A",
+        "loan_amnt": "9000",
+        "loan_int_rate": "7.2%",
+        "loan_percent_income": "7%",
+        "cb_person_default_on_file": "N",
+        "cb_person_cred_hist_length": "12",
+    }
+
+    MANUAL_SAMPLE_PAYLOAD = {
+        "person_age": "29",
+        "person_income": "42000",
+        "person_home_ownership": "RENT",
+        "person_emp_length": "1 year",
+        "loan_intent": "PERSONAL",
+        "loan_grade": "D",
+        "loan_amnt": "18000",
+        "loan_int_rate": "15.5%",
+        "loan_percent_income": "46%",
+        "cb_person_default_on_file": "N",
+        "cb_person_cred_hist_length": "4",
+    }
+
     def setUp(self) -> None:
         self.client = TestClient(app)
         self.valid_payload = {
@@ -95,6 +127,122 @@ class ApiTests(unittest.TestCase):
             {"field": "loan_amnt", "message": "Required field is missing or invalid"},
             response.json()["detail"],
         )
+
+    def test_process_accept_sample_yields_approve(self) -> None:
+        sample_path = Path(__file__).resolve().parents[2] / "frontend" / "public" / "samples" / "accept_application.json"
+        payload = (
+            json.loads(sample_path.read_text(encoding="utf-8"))
+            if sample_path.exists()
+            else dict(self.ACCEPT_SAMPLE_PAYLOAD)
+        )
+
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}, clear=False):
+            with patch(
+                "app.api.v1.process.providers.get_default_model_output",
+                return_value=DefaultModelOutput(
+                    model_name="credit_risk_predictor",
+                    default_probability=0.02,
+                    risk_band="low",
+                    top_features=[],
+                ),
+            ):
+                with patch(
+                    "app.api.v1.process.providers.get_anomaly_model_output",
+                    return_value=AnomalyModelOutput(
+                        model_name="ae_agent_autoencoder",
+                        anomaly_score=0.05,
+                        anomaly_band="normal",
+                        out_of_distribution=False,
+                        top_anomaly_reasons=[],
+                    ),
+                ):
+                    response = self.client.post("/api/v1/process", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["rule_decision"]["decision"], "APPROVE")
+        self.assertEqual(result["ai_decision"]["decision"], "APPROVE")
+        self.assertEqual(result["decision_payload"]["overall_decision"]["decision"], "accept")
+
+    def test_process_manual_sample_yields_manual_review(self) -> None:
+        sample_path = Path(__file__).resolve().parents[2] / "frontend" / "public" / "samples" / "manual_application.csv"
+        if sample_path.exists():
+            with sample_path.open("r", encoding="utf-8", newline="") as handle:
+                row = next(csv.DictReader(handle))
+        else:
+            row = dict(self.MANUAL_SAMPLE_PAYLOAD)
+
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}, clear=False):
+            with patch(
+                "app.api.v1.process.providers.get_default_model_output",
+                return_value=DefaultModelOutput(
+                    model_name="credit_risk_predictor",
+                    default_probability=0.37,
+                    risk_band="medium",
+                    top_features=[],
+                ),
+            ):
+                with patch(
+                    "app.api.v1.process.providers.get_anomaly_model_output",
+                    return_value=AnomalyModelOutput(
+                        model_name="ae_agent_autoencoder",
+                        anomaly_score=0.17,
+                        anomaly_band="high",
+                        out_of_distribution=True,
+                        top_anomaly_reasons=[],
+                    ),
+                ):
+                    response = self.client.post("/api/v1/process", json=row)
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["rule_decision"]["decision"], "MANUAL_REVIEW")
+        self.assertEqual(result["ai_decision"]["decision"], "MANUAL_REVIEW")
+        self.assertEqual(result["decision_payload"]["overall_decision"]["decision"], "manual_review")
+
+    def test_process_reject_sample_yields_reject(self) -> None:
+        # Matches the record in frontend/public/samples/rejects_application.xlsx.
+        payload = {
+            "person_age": "22",
+            "person_income": "25000",
+            "person_home_ownership": "RENT",
+            "person_emp_length": "4 months",
+            "loan_intent": "PERSONAL",
+            "loan_grade": "G",
+            "loan_amnt": "30000",
+            "loan_int_rate": "21%",
+            "loan_percent_income": "95%",
+            "cb_person_default_on_file": "Y",
+            "cb_person_cred_hist_length": "1",
+        }
+
+        with patch.dict(os.environ, {"OPENROUTER_API_KEY": ""}, clear=False):
+            with patch(
+                "app.api.v1.process.providers.get_default_model_output",
+                return_value=DefaultModelOutput(
+                    model_name="credit_risk_predictor",
+                    default_probability=0.99,
+                    risk_band="high",
+                    top_features=[],
+                ),
+            ):
+                with patch(
+                    "app.api.v1.process.providers.get_anomaly_model_output",
+                    return_value=AnomalyModelOutput(
+                        model_name="ae_agent_autoencoder",
+                        anomaly_score=0.27,
+                        anomaly_band="high",
+                        out_of_distribution=True,
+                        top_anomaly_reasons=[],
+                    ),
+                ):
+                    response = self.client.post("/api/v1/process", json=payload)
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()
+        self.assertEqual(result["rule_decision"]["decision"], "REJECT")
+        self.assertEqual(result["ai_decision"]["decision"], "REJECT")
+        self.assertEqual(result["decision_payload"]["overall_decision"]["decision"], "reject")
 
     def test_process_returns_503_when_default_model_unavailable(self) -> None:
         with patch(

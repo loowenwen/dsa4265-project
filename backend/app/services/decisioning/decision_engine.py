@@ -6,7 +6,6 @@ AI path is stubbed heuristics to stay runnable; replace with real LLM call later
 from __future__ import annotations
 
 from typing import Literal
-from collections import Counter
 import logging
 
 import os
@@ -54,52 +53,39 @@ def _anomaly_decision(anomaly_score: float | None) -> str:
     return "accept"
 
 
-def _overall_decision(default_risk_decision: str, anomaly_decision: str, ai_decision: str) -> str:
-    counts = Counter([default_risk_decision, anomaly_decision, ai_decision])
-    top_decision, top_count = counts.most_common(1)[0]
-    if top_count >= 2:
-        return top_decision
+def _combine_two_votes(rule_vote: str, ai_vote: str) -> str:
+    # Manual review always wins when either voter is uncertain/escalating.
+    if "manual_review" in (rule_vote, ai_vote):
+        return "manual_review"
+    if rule_vote == ai_vote:
+        return rule_vote
+    if {rule_vote, ai_vote} == {"accept", "reject"}:
+        return "manual_review"
     return "manual_review"
 
 
-def _decision_note(
-    default_risk_decision: str,
-    anomaly_decision: str,
-    ai_decision: str,
-    overall_decision: str,
-) -> str:
-    labels = {
-        "default_risk": default_risk_decision,
-        "anomaly_detection": anomaly_decision,
-        "ai_decision": ai_decision,
-    }
-    counts = Counter(labels.values())
+def _decision_note(rule_vote: str, ai_vote: str, overall_decision: str) -> str:
+    pretty_rule = rule_vote.replace("_", " ")
+    pretty_ai = ai_vote.replace("_", " ")
+    pretty_final = overall_decision.replace("_", " ")
 
-    if len(counts) == 1:
+    if rule_vote == ai_vote:
         return (
-            "Default risk, anomaly detection, and AI decision all suggest "
-            + overall_decision.replace("_", " ")
-            + "."
+            f"Rule vote is {pretty_rule} and AI vote is {pretty_ai}; "
+            f"the final decision is {pretty_final} because both votes agree."
         )
 
-    majority = counts.most_common(1)[0][0]
-    majority_sources = [name for name, decision in labels.items() if decision == majority]
-    minority_sources = [name for name, decision in labels.items() if decision != majority]
-
-    pretty = {
-        "default_risk": "Default risk",
-        "anomaly_detection": "Anomaly detection",
-        "ai_decision": "AI decision",
-    }
-
-    if len(majority_sources) == 2 and len(minority_sources) == 1:
+    if "manual_review" in (rule_vote, ai_vote):
         return (
-            f"{pretty[majority_sources[0]]} and {pretty[majority_sources[1]]} suggest "
-            f"{majority.replace('_', ' ')}, while {pretty[minority_sources[0]]} suggests "
-            f"{labels[minority_sources[0]].replace('_', ' ')}."
+            f"Rule vote is {pretty_rule} and AI vote is {pretty_ai}; "
+            f"the final decision is {pretty_final} because a manual-review vote overrides direct "
+            "approve/reject outcomes."
         )
 
-    return "The three sources provide mixed signals, so manual review is recommended."
+    return (
+        f"Rule vote is {pretty_rule} and AI vote is {pretty_ai}; "
+        f"the final decision is {pretty_final} because approve/reject conflict routes to manual review."
+    )
 
 
 def _rule_based_decision(
@@ -111,19 +97,10 @@ def _rule_based_decision(
     reasons: list[str] = []
     triggered: list[str] = []
 
-    # Missing info -> manual review, but ignore demographic_information
+    # Missing info excludes demographic_information for rule checks.
     filtered_missing = [f for f in missing_fields if f != "demographic_information"]
-    if filtered_missing:
-        reasons.append("Missing required information")
-        return RuleDecision(
-            decision="MANUAL_REVIEW",
-            reasons=reasons,
-            triggered_rules=["INCOMPLETE_DATA"],
-            missing_info=filtered_missing,
-            confidence=0.4,
-        )
 
-    # High risk reject
+    # 1) Hard reject first on default probability.
     if default_probability is not None and default_probability >= cfg.REJECT_THRESHOLD:
         reasons.append("Default risk above reject threshold")
         triggered.append("HIGH_DEFAULT_RISK")
@@ -135,7 +112,7 @@ def _rule_based_decision(
             confidence=0.7,
         )
 
-    # Anomaly check
+    # 2) Elevated anomaly routes to manual review.
     if anomaly_score is not None and anomaly_score >= cfg.ANOMALY_REVIEW_THRESHOLD:
         reasons.append("Elevated anomaly score")
         triggered.append("ELEVATED_ANOMALY")
@@ -147,7 +124,7 @@ def _rule_based_decision(
             confidence=0.5,
         )
 
-    # Suspicious fields
+    # 3) Suspicious fields route to manual review.
     if suspicious_fields:
         reasons.append("Suspicious input values present")
         triggered.append("SUSPICIOUS_INPUT")
@@ -159,8 +136,25 @@ def _rule_based_decision(
             confidence=0.5,
         )
 
-    # Low risk approve
-    if default_probability is not None and default_probability < cfg.APPROVE_THRESHOLD:
+    # 4) Missing required fields route to manual review.
+    if filtered_missing:
+        reasons.append("Missing required information")
+        triggered.append("INCOMPLETE_DATA")
+        return RuleDecision(
+            decision="MANUAL_REVIEW",
+            reasons=reasons,
+            triggered_rules=triggered,
+            missing_info=filtered_missing,
+            confidence=0.4,
+        )
+
+    # 5) Low-risk approve only when anomaly score is explicitly below threshold.
+    if (
+        default_probability is not None
+        and default_probability < cfg.APPROVE_THRESHOLD
+        and anomaly_score is not None
+        and anomaly_score < cfg.ANOMALY_REVIEW_THRESHOLD
+    ):
         reasons.append("Low default risk below approve threshold")
         triggered.append("LOW_RISK_CLEAR_POLICY")
         return RuleDecision(
@@ -171,7 +165,7 @@ def _rule_based_decision(
             confidence=0.75,
         )
 
-    # Fallback manual review
+    # 6) Uncertain band fallback.
     reasons.append("Insufficient certainty; manual review")
     return RuleDecision(
         decision="MANUAL_REVIEW",
@@ -338,15 +332,15 @@ def run_dual_engine(
 
     default_risk_decision = _default_risk_decision(default_probability)
     anomaly_decision = _anomaly_decision(anomaly_score)
+    rule_decision_label = _map_upper_decision(rule.decision)
     ai_decision_label = _map_upper_decision(ai.decision)
-    overall_decision = _overall_decision(default_risk_decision, anomaly_decision, ai_decision_label)
-    decision_note = _decision_note(
-        default_risk_decision, anomaly_decision, ai_decision_label, overall_decision
-    )
+    overall_decision = _combine_two_votes(rule_decision_label, ai_decision_label)
+    decision_note = _decision_note(rule_decision_label, ai_decision_label, overall_decision)
 
     decision_bundle = {
         "default_risk_decision": default_risk_decision,
         "anomaly_decision": anomaly_decision,
+        "rule_decision_label": rule_decision_label,
         "ai_decision_label": ai_decision_label,
         "overall_decision": overall_decision,
         "decision_note": decision_note,
