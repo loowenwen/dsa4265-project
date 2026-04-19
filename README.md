@@ -2,9 +2,9 @@
 
 This repository contains an end-to-end financial AI course project for intelligent credit underwriting. It combines applicant ingestion, validation, default-risk scoring, anomaly detection, decision orchestration, explanation generation, policy retrieval, and a policy chatbot behind a FastAPI backend and a Next.js frontend.
 
-## What the Project Does
-
 The system is designed as a local prototype for credit underwriting workflows: a user submits applicant information, the backend scores and checks the application, and the frontend displays the decision evidence in a form suitable for review and explanation.
+
+## What the Project Does
 
 - Accepts applicant records through a web form or sample file upload.
 - Normalizes and validates fields required by the credit-risk model.
